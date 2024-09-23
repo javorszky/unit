@@ -135,6 +135,12 @@ pub(crate) enum Commands {
         #[arg(required = true, short = 'f', help = "tarball filename to save configuration to")]
         filename: String,
     },
+
+    #[command(about = "Watch changes to a config JSON file, and restart application")]
+    Watch {
+        #[arg(required = true, short = 'f', help = "configuration filename to watch")]
+        filename: String,
+    }
 }
 
 #[derive(Debug, Args)]

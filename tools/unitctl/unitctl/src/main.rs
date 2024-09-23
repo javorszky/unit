@@ -11,7 +11,7 @@ use clap::Parser;
 use crate::cmd::{
     applications, edit, execute as execute_cmd,
     import, instances, listeners, status,
-    save
+    save, watch
 };
 use crate::output_format::OutputFormat;
 use crate::unitctl::{Commands, UnitCtl};
@@ -52,6 +52,8 @@ async fn main() -> Result<(), UnitctlError> {
         Commands::Listeners { output_format } => listeners::cmd(&cli, output_format).await,
 
         Commands::Export { ref filename } => save::cmd(&cli, filename).await,
+
+        Commands::Watch { ref filename } => watch::cmd(&cli, filename).await,
     }
     .map_err(|error| {
         eprint_error(&error);
