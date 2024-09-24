@@ -33,7 +33,7 @@ pub(crate) async fn cmd(
 
     for client in clients {
         let _ = send_and_deserialize(
-            client,
+            &client,
             method_upper.clone(),
             input_file_arg.clone(),
             path_trimmed,
@@ -48,8 +48,8 @@ pub(crate) async fn cmd(
     Ok(())
 }
 
-async fn send_and_deserialize(
-    client: UnitClient,
+pub async fn send_and_deserialize(
+    client: &UnitClient,
     method: String,
     input_file: Option<InputFile>,
     path: &str,
