@@ -6,31 +6,30 @@
 #include <nxt_main.h>
 
 
-static nxt_int_t nxt_fs_mkdir(const u_char *dir, mode_t mode);
-
+static nxt_int_t
+nxt_fs_mkdir(const u_char *dir, mode_t mode);
 
 nxt_int_t
-nxt_fs_mkdir_p(const u_char *dir, mode_t mode)
-{
-    char       *start, *end, *dst;
-    size_t     dirlen;
-    nxt_int_t  ret;
-    char       path[PATH_MAX];
+nxt_fs_mkdir_p(const u_char *dir, mode_t mode) {
+    char     *start, *end, *dst;
+    size_t    dirlen;
+    nxt_int_t ret;
+    char      path[PATH_MAX];
 
     dirlen = nxt_strlen(dir);
 
     nxt_assert(dirlen < PATH_MAX && dirlen > 0);
 
-    dst = path;
+    dst   = path;
     start = (char *) dir;
 
     while (*start != '\0') {
         end = strchr(start + 1, '/');
         if (end == NULL) {
-            end = ((char *)dir + dirlen);
+            end = ((char *) dir + dirlen);
         }
 
-        dst = nxt_cpymem(dst, start, end - start);
+        dst  = nxt_cpymem(dst, start, end - start);
         *dst = '\0';
 
         ret = nxt_fs_mkdir((u_char *) path, mode);
@@ -44,12 +43,10 @@ nxt_fs_mkdir_p(const u_char *dir, mode_t mode)
     return NXT_OK;
 }
 
-
 nxt_int_t
-nxt_fs_mkdir_p_dirname(const u_char *path, mode_t mode)
-{
-    char       *ptr, *dir;
-    nxt_int_t  ret;
+nxt_fs_mkdir_p_dirname(const u_char *path, mode_t mode) {
+    char     *ptr, *dir;
+    nxt_int_t ret;
 
     dir = nxt_strdup(path);
     if (nxt_slow_path(dir == NULL)) {
@@ -64,7 +61,7 @@ nxt_fs_mkdir_p_dirname(const u_char *path, mode_t mode)
     }
 
     *ptr = '\0';
-    ret = nxt_fs_mkdir_p((const u_char *) dir, mode);
+    ret  = nxt_fs_mkdir_p((const u_char *) dir, mode);
 
 out_free:
     nxt_free(dir);
@@ -72,10 +69,8 @@ out_free:
     return ret;
 }
 
-
 static nxt_int_t
-nxt_fs_mkdir(const u_char *dir, mode_t mode)
-{
+nxt_fs_mkdir(const u_char *dir, mode_t mode) {
     if (nxt_fast_path(mkdir((const char *) dir, mode) == 0)) {
         return NXT_OK;
     }

@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) NGINX, Inc.
  */
@@ -14,28 +13,28 @@
 #include "nxt_jni_URLClassLoader.h"
 
 
-static jint JNICALL nxt_java_InputStream_readLine(JNIEnv *env, jclass cls,
-    jlong req_info_ptr, jarray b, jint off, jint len);
-static jboolean JNICALL nxt_java_InputStream_isFinished(JNIEnv *env, jclass cls,
-    jlong req_info_ptr);
-static jint JNICALL nxt_java_InputStream_readByte(JNIEnv *env, jclass cls,
-    jlong req_info_ptr);
-static jint JNICALL nxt_java_InputStream_read(JNIEnv *env, jclass cls,
-    jlong req_info_ptr, jarray b, jint off, jint len);
-static jlong JNICALL nxt_java_InputStream_skip(JNIEnv *env, jclass cls,
-    jlong req_info_ptr, jlong n);
-static jint JNICALL nxt_java_InputStream_available(JNIEnv *env, jclass cls,
-    jlong req_info_ptr);
+static jint JNICALL
+nxt_java_InputStream_readLine(JNIEnv *env, jclass cls, jlong req_info_ptr,
+    jarray b, jint off, jint len);
+static jboolean JNICALL
+nxt_java_InputStream_isFinished(JNIEnv *env, jclass cls, jlong req_info_ptr);
+static jint JNICALL
+nxt_java_InputStream_readByte(JNIEnv *env, jclass cls, jlong req_info_ptr);
+static jint JNICALL
+nxt_java_InputStream_read(JNIEnv *env, jclass cls, jlong req_info_ptr, jarray b,
+    jint off, jint len);
+static jlong JNICALL
+nxt_java_InputStream_skip(JNIEnv *env, jclass cls, jlong req_info_ptr, jlong n);
+static jint JNICALL
+nxt_java_InputStream_available(JNIEnv *env, jclass cls, jlong req_info_ptr);
 
 
-static jclass  nxt_java_InputStream_class;
-
+static jclass nxt_java_InputStream_class;
 
 int
-nxt_java_initInputStream(JNIEnv *env, jobject cl)
-{
-    int     res;
-    jclass  cls;
+nxt_java_initInputStream(JNIEnv *env, jobject cl) {
+    int    res;
+    jclass cls;
 
     cls = nxt_java_loadClass(env, cl, "nginx.unit.InputStream");
     if (cls == NULL) {
@@ -46,34 +45,23 @@ nxt_java_initInputStream(JNIEnv *env, jobject cl)
     (*env)->DeleteLocalRef(env, cls);
 
     JNINativeMethod is_methods[] = {
-        { (char *) "readLine",
-          (char *) "(J[BII)I",
-          nxt_java_InputStream_readLine },
+        {(char *) "readLine", (char *) "(J[BII)I",
+            nxt_java_InputStream_readLine},
 
-        { (char *) "isFinished",
-          (char *) "(J)Z",
-          nxt_java_InputStream_isFinished },
+        {(char *) "isFinished", (char *) "(J)Z",
+            nxt_java_InputStream_isFinished},
 
-        { (char *) "read",
-          (char *) "(J)I",
-          nxt_java_InputStream_readByte },
+        {(char *) "read", (char *) "(J)I", nxt_java_InputStream_readByte},
 
-        { (char *) "read",
-          (char *) "(J[BII)I",
-          nxt_java_InputStream_read },
+        {(char *) "read", (char *) "(J[BII)I", nxt_java_InputStream_read},
 
-        { (char *) "skip",
-          (char *) "(JJ)J",
-          nxt_java_InputStream_skip },
+        {(char *) "skip", (char *) "(JJ)J", nxt_java_InputStream_skip},
 
-        { (char *) "available",
-          (char *) "(J)I",
-          nxt_java_InputStream_available },
+        {(char *) "available", (char *) "(J)I", nxt_java_InputStream_available},
     };
 
-    res = (*env)->RegisterNatives(env, nxt_java_InputStream_class,
-                                  is_methods,
-                                  sizeof(is_methods) / sizeof(is_methods[0]));
+    res = (*env)->RegisterNatives(env, nxt_java_InputStream_class, is_methods,
+        sizeof(is_methods) / sizeof(is_methods[0]));
 
     nxt_unit_debug(NULL, "registered InputStream methods: %d", res);
 
@@ -85,14 +73,12 @@ nxt_java_initInputStream(JNIEnv *env, jobject cl)
     return NXT_UNIT_OK;
 }
 
-
 static jint JNICALL
-nxt_java_InputStream_readLine(JNIEnv *env, jclass cls,
-    jlong req_info_ptr, jarray out, jint off, jint len)
-{
-    uint8_t                  *data;
+nxt_java_InputStream_readLine(JNIEnv *env, jclass cls, jlong req_info_ptr,
+    jarray out, jint off, jint len) {
+    uint8_t                 *data;
     ssize_t                  res;
-    nxt_unit_request_info_t  *req;
+    nxt_unit_request_info_t *req;
 
     req = nxt_jlong2ptr(req_info_ptr);
 
@@ -111,24 +97,20 @@ nxt_java_InputStream_readLine(JNIEnv *env, jclass cls,
     return res > 0 ? res : -1;
 }
 
-
 static jboolean JNICALL
-nxt_java_InputStream_isFinished(JNIEnv *env, jclass cls, jlong req_info_ptr)
-{
-    nxt_unit_request_info_t  *req;
+nxt_java_InputStream_isFinished(JNIEnv *env, jclass cls, jlong req_info_ptr) {
+    nxt_unit_request_info_t *req;
 
     req = nxt_jlong2ptr(req_info_ptr);
 
     return req->content_length == 0;
 }
 
-
 static jint JNICALL
-nxt_java_InputStream_readByte(JNIEnv *env, jclass cls, jlong req_info_ptr)
-{
+nxt_java_InputStream_readByte(JNIEnv *env, jclass cls, jlong req_info_ptr) {
     uint8_t                  b;
     ssize_t                  size;
-    nxt_unit_request_info_t  *req;
+    nxt_unit_request_info_t *req;
 
     req = nxt_jlong2ptr(req_info_ptr);
 
@@ -137,14 +119,12 @@ nxt_java_InputStream_readByte(JNIEnv *env, jclass cls, jlong req_info_ptr)
     return size == 1 ? b : -1;
 }
 
-
 static jint JNICALL
-nxt_java_InputStream_read(JNIEnv *env, jclass cls, jlong req_info_ptr,
-    jarray b, jint off, jint len)
-{
-    uint8_t                  *data;
+nxt_java_InputStream_read(JNIEnv *env, jclass cls, jlong req_info_ptr, jarray b,
+    jint off, jint len) {
+    uint8_t                 *data;
     ssize_t                  res;
-    nxt_unit_request_info_t  *req;
+    nxt_unit_request_info_t *req;
 
     req = nxt_jlong2ptr(req_info_ptr);
 
@@ -159,13 +139,12 @@ nxt_java_InputStream_read(JNIEnv *env, jclass cls, jlong req_info_ptr,
     return res > 0 ? res : -1;
 }
 
-
 static jlong JNICALL
-nxt_java_InputStream_skip(JNIEnv *env, jclass cls, jlong req_info_ptr, jlong n)
-{
+nxt_java_InputStream_skip(JNIEnv *env, jclass cls, jlong req_info_ptr,
+    jlong n) {
     size_t                   rest, b_size;
-    nxt_unit_buf_t           *buf;
-    nxt_unit_request_info_t  *req;
+    nxt_unit_buf_t          *buf;
+    nxt_unit_request_info_t *req;
 
     req = nxt_jlong2ptr(req_info_ptr);
 
@@ -178,7 +157,7 @@ nxt_java_InputStream_skip(JNIEnv *env, jclass cls, jlong req_info_ptr, jlong n)
         b_size = rest < b_size ? rest : b_size;
 
         buf->free += b_size;
-        rest -= b_size;
+        rest      -= b_size;
 
         if (rest == 0) {
             if (buf->end == buf->free) {
@@ -198,11 +177,9 @@ nxt_java_InputStream_skip(JNIEnv *env, jclass cls, jlong req_info_ptr, jlong n)
     return n;
 }
 
-
 static jint JNICALL
-nxt_java_InputStream_available(JNIEnv *env, jclass cls, jlong req_info_ptr)
-{
-    nxt_unit_request_info_t  *req;
+nxt_java_InputStream_available(JNIEnv *env, jclass cls, jlong req_info_ptr) {
+    nxt_unit_request_info_t *req;
 
     req = nxt_jlong2ptr(req_info_ptr);
 

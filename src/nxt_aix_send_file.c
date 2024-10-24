@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
@@ -9,27 +8,27 @@
 
 /* send_file() has been introduced in AIX 4.3.2 */
 
-ssize_t nxt_aix_event_conn_io_send_file(nxt_event_conn_t *c, nxt_buf_t *b,
+ssize_t
+nxt_aix_event_conn_io_send_file(nxt_event_conn_t *c, nxt_buf_t *b,
     size_t limit);
 
-
 ssize_t
-nxt_aix_event_conn_io_send_file(nxt_event_conn_t *c, nxt_buf_t *b, size_t limit)
-{
-    ssize_t                 n;
-    nxt_buf_t               *fb;
-    nxt_err_t               err;
-    nxt_off_t               file_size, sent;
-    nxt_uint_t              nhd, ntr;
-    struct iovec            hd[NXT_IOBUF_MAX], tr;
-    struct sf_parms         sfp;
-    nxt_sendbuf_coalesce_t  sb;
+nxt_aix_event_conn_io_send_file(nxt_event_conn_t *c, nxt_buf_t *b,
+    size_t limit) {
+    ssize_t                n;
+    nxt_buf_t             *fb;
+    nxt_err_t              err;
+    nxt_off_t              file_size, sent;
+    nxt_uint_t             nhd, ntr;
+    struct iovec           hd[NXT_IOBUF_MAX], tr;
+    struct sf_parms        sfp;
+    nxt_sendbuf_coalesce_t sb;
 
-    sb.buf = b;
+    sb.buf   = b;
     sb.iobuf = hd;
-    sb.nmax = NXT_IOBUF_MAX;
-    sb.sync = 0;
-    sb.size = 0;
+    sb.nmax  = NXT_IOBUF_MAX;
+    sb.sync  = 0;
+    sb.size  = 0;
     sb.limit = limit;
 
     nhd = nxt_sendbuf_mem_coalesce(c->socket.task, &sb);
@@ -51,36 +50,36 @@ nxt_aix_event_conn_io_send_file(nxt_event_conn_t *c, nxt_buf_t *b, size_t limit)
     }
 
     sb.iobuf = &tr;
-    sb.nmax = 1;
+    sb.nmax  = 1;
 
     ntr = nxt_sendbuf_mem_coalesce(c->socket.task, &sb);
 
     nxt_memzero(&sfp, sizeof(struct sf_parms));
 
     if (nhd != 0) {
-        sfp.header_data = hd[0].iov_base;
+        sfp.header_data   = hd[0].iov_base;
         sfp.header_length = hd[0].iov_len;
     }
 
     sfp.file_descriptor = fb->file->fd;
-    sfp.file_offset = fb->file_pos;
-    sfp.file_bytes = file_size;
+    sfp.file_offset     = fb->file_pos;
+    sfp.file_bytes      = file_size;
 
     if (ntr != 0) {
-        sfp.trailer_data = tr.iov_base;
+        sfp.trailer_data   = tr.iov_base;
         sfp.trailer_length = tr.iov_len;
     }
 
     nxt_debug(c->socket.task, "send_file(%d) fd:%FD @%O:%O hd:%ui tr:%ui",
-              c->socket.fd, fb->file->fd, fb->file_pos, file_size, nhd, ntr);
+        c->socket.fd, fb->file->fd, fb->file_pos, file_size, nhd, ntr);
 
     n = send_file(&c->socket.fd, &sfp, 0);
 
-    err = (n == -1) ? nxt_errno : 0;
+    err  = (n == -1) ? nxt_errno : 0;
     sent = sfp.bytes_sent;
 
-    nxt_debug(c->socket.task, "send_file(%d): %d sent:%O",
-              c->socket.fd, n, sent);
+    nxt_debug(c->socket.task, "send_file(%d): %d sent:%O", c->socket.fd, n,
+        sent);
 
     /*
      * -1  an error has occurred, errno contains the error code;
@@ -91,7 +90,6 @@ nxt_aix_event_conn_io_send_file(nxt_event_conn_t *c, nxt_buf_t *b, size_t limit)
      */
     if (n == -1) {
         switch (err) {
-
         case NXT_EAGAIN:
             c->socket.write_ready = 0;
             break;

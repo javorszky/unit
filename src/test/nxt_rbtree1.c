@@ -1,12 +1,11 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
  */
 
 
-#include <nxt_main.h>
 #include "nxt_rbtree1.h"
+#include <nxt_main.h>
 
 
 /*
@@ -15,26 +14,26 @@
  */
 
 
-nxt_inline void nxt_rbtree1_left_rotate(nxt_rbtree1_node_t **root,
+nxt_inline void
+nxt_rbtree1_left_rotate(nxt_rbtree1_node_t **root, nxt_rbtree1_node_t *sentinel,
+    nxt_rbtree1_node_t *node);
+nxt_inline void
+nxt_rbtree1_right_rotate(nxt_rbtree1_node_t **root,
     nxt_rbtree1_node_t *sentinel, nxt_rbtree1_node_t *node);
-nxt_inline void nxt_rbtree1_right_rotate(nxt_rbtree1_node_t **root,
-    nxt_rbtree1_node_t *sentinel, nxt_rbtree1_node_t *node);
-
 
 void
-nxt_rbtree1_insert(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
-{
-    nxt_rbtree1_node_t  **root, *temp, *sentinel;
+nxt_rbtree1_insert(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node) {
+    nxt_rbtree1_node_t **root, *temp, *sentinel;
 
     /* a binary tree insert */
 
-    root = (nxt_rbtree1_node_t **) &tree->root;
+    root     = (nxt_rbtree1_node_t **) &tree->root;
     sentinel = tree->sentinel;
 
     if (*root == sentinel) {
         node->parent = NULL;
-        node->left = sentinel;
-        node->right = sentinel;
+        node->left   = sentinel;
+        node->right  = sentinel;
         nxt_rbtree1_black(node);
         *root = node;
 
@@ -46,7 +45,6 @@ nxt_rbtree1_insert(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
     /* re-balance tree */
 
     while (node != *root && nxt_rbtree1_is_red(node->parent)) {
-
         if (node->parent == node->parent->parent->left) {
             temp = node->parent->parent->right;
 
@@ -92,15 +90,12 @@ nxt_rbtree1_insert(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
     nxt_rbtree1_black(*root);
 }
 
-
 void
 nxt_rbtree1_insert_value(nxt_rbtree1_node_t *temp, nxt_rbtree1_node_t *node,
-    nxt_rbtree1_node_t *sentinel)
-{
-    nxt_rbtree1_node_t  **p;
+    nxt_rbtree1_node_t *sentinel) {
+    nxt_rbtree1_node_t **p;
 
-    for ( ;; ) {
-
+    for (;;) {
         p = (node->key < temp->key) ? &temp->left : &temp->right;
 
         if (*p == sentinel) {
@@ -110,22 +105,19 @@ nxt_rbtree1_insert_value(nxt_rbtree1_node_t *temp, nxt_rbtree1_node_t *node,
         temp = *p;
     }
 
-    *p = node;
+    *p           = node;
     node->parent = temp;
-    node->left = sentinel;
-    node->right = sentinel;
+    node->left   = sentinel;
+    node->right  = sentinel;
     nxt_rbtree1_red(node);
 }
 
-
 void
 nxt_rbtree1_insert_timer_value(nxt_rbtree1_node_t *temp,
-    nxt_rbtree1_node_t *node, nxt_rbtree1_node_t *sentinel)
-{
-    nxt_rbtree1_node_t  **p;
+    nxt_rbtree1_node_t *node, nxt_rbtree1_node_t *sentinel) {
+    nxt_rbtree1_node_t **p;
 
-    for ( ;; ) {
-
+    for (;;) {
         /*
          * Timer values
          * 1) are spread in small range, usually several minutes,
@@ -136,7 +128,8 @@ nxt_rbtree1_insert_timer_value(nxt_rbtree1_node_t *temp,
         /*  node->key < temp->key */
 
         p = ((nxt_rbtree1_key_int_t) (node->key - temp->key) < 0)
-            ? &temp->left : &temp->right;
+                ? &temp->left
+                : &temp->right;
 
         if (*p == sentinel) {
             break;
@@ -145,31 +138,29 @@ nxt_rbtree1_insert_timer_value(nxt_rbtree1_node_t *temp,
         temp = *p;
     }
 
-    *p = node;
+    *p           = node;
     node->parent = temp;
-    node->left = sentinel;
-    node->right = sentinel;
+    node->left   = sentinel;
+    node->right  = sentinel;
     nxt_rbtree1_red(node);
 }
 
-
 void
-nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
-{
-    nxt_uint_t      red;
-    nxt_rbtree1_node_t  **root, *sentinel, *subst, *temp, *w;
+nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node) {
+    nxt_uint_t           red;
+    nxt_rbtree1_node_t **root, *sentinel, *subst, *temp, *w;
 
     /* a binary tree delete */
 
-    root = (nxt_rbtree1_node_t **) &tree->root;
+    root     = (nxt_rbtree1_node_t **) &tree->root;
     sentinel = tree->sentinel;
 
     if (node->left == sentinel) {
-        temp = node->right;
+        temp  = node->right;
         subst = node;
 
     } else if (node->right == sentinel) {
-        temp = node->left;
+        temp  = node->left;
         subst = node;
 
     } else {
@@ -187,10 +178,10 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
         nxt_rbtree1_black(temp);
 
         /* DEBUG stuff */
-        node->left = NULL;
-        node->right = NULL;
+        node->left   = NULL;
+        node->right  = NULL;
         node->parent = NULL;
-        node->key = 0;
+        node->key    = 0;
 
         return;
     }
@@ -205,11 +196,9 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
     }
 
     if (subst == node) {
-
         temp->parent = subst->parent;
 
     } else {
-
         if (subst->parent == node) {
             temp->parent = subst;
 
@@ -217,8 +206,8 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
             temp->parent = subst->parent;
         }
 
-        subst->left = node->left;
-        subst->right = node->right;
+        subst->left   = node->left;
+        subst->right  = node->right;
         subst->parent = node->parent;
         nxt_rbtree1_copy_color(subst, node);
 
@@ -243,10 +232,10 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
     }
 
     /* DEBUG stuff */
-    node->left = NULL;
-    node->right = NULL;
+    node->left   = NULL;
+    node->right  = NULL;
     node->parent = NULL;
-    node->key = 0;
+    node->key    = 0;
 
     if (red) {
         return;
@@ -255,7 +244,6 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
     /* a delete fixup */
 
     while (temp != *root && nxt_rbtree1_is_black(temp)) {
-
         if (temp == temp->parent->left) {
             w = temp->parent->right;
 
@@ -266,8 +254,8 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
                 w = temp->parent->right;
             }
 
-            if (nxt_rbtree1_is_black(w->left) && nxt_rbtree1_is_black(w->right))
-            {
+            if (nxt_rbtree1_is_black(w->left)
+                && nxt_rbtree1_is_black(w->right)) {
                 nxt_rbtree1_red(w);
                 temp = temp->parent;
 
@@ -296,8 +284,8 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
                 w = temp->parent->left;
             }
 
-            if (nxt_rbtree1_is_black(w->left) && nxt_rbtree1_is_black(w->right))
-            {
+            if (nxt_rbtree1_is_black(w->left)
+                && nxt_rbtree1_is_black(w->right)) {
                 nxt_rbtree1_red(w);
                 temp = temp->parent;
 
@@ -321,14 +309,12 @@ nxt_rbtree1_delete(nxt_rbtree1_t *tree, nxt_rbtree1_node_t *node)
     nxt_rbtree1_black(temp);
 }
 
-
 nxt_inline void
 nxt_rbtree1_left_rotate(nxt_rbtree1_node_t **root, nxt_rbtree1_node_t *sentinel,
-    nxt_rbtree1_node_t *node)
-{
-    nxt_rbtree1_node_t  *temp;
+    nxt_rbtree1_node_t *node) {
+    nxt_rbtree1_node_t *temp;
 
-    temp = node->right;
+    temp        = node->right;
     node->right = temp->left;
 
     if (temp->left != sentinel) {
@@ -347,18 +333,16 @@ nxt_rbtree1_left_rotate(nxt_rbtree1_node_t **root, nxt_rbtree1_node_t *sentinel,
         node->parent->right = temp;
     }
 
-    temp->left = node;
+    temp->left   = node;
     node->parent = temp;
 }
 
-
 nxt_inline void
 nxt_rbtree1_right_rotate(nxt_rbtree1_node_t **root,
-    nxt_rbtree1_node_t *sentinel, nxt_rbtree1_node_t *node)
-{
-    nxt_rbtree1_node_t  *temp;
+    nxt_rbtree1_node_t *sentinel, nxt_rbtree1_node_t *node) {
+    nxt_rbtree1_node_t *temp;
 
-    temp = node->left;
+    temp       = node->left;
     node->left = temp->right;
 
     if (temp->right != sentinel) {
@@ -377,6 +361,6 @@ nxt_rbtree1_right_rotate(nxt_rbtree1_node_t **root,
         node->parent->left = temp;
     }
 
-    temp->right = node;
+    temp->right  = node;
     node->parent = temp;
 }

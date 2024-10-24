@@ -1,4 +1,3 @@
-
 /*
  * The code is based on the code by Austin Appleby,
  * released to the public domain.
@@ -6,13 +5,11 @@
 
 #include <nxt_main.h>
 
-
 uint32_t
-nxt_murmur_hash2(const void *data, size_t len)
-{
-    uint32_t        h, k;
-    const u_char    *p;
-    const uint32_t  m = 0x5BD1E995;
+nxt_murmur_hash2(const void *data, size_t len) {
+    uint32_t       h, k;
+    const u_char  *p;
+    const uint32_t m = 0x5BD1E995;
 
     p = data;
     h = 0 ^ (uint32_t) len;
@@ -30,7 +27,7 @@ nxt_murmur_hash2(const void *data, size_t len)
         h *= m;
         h ^= k;
 
-        p += 4;
+        p   += 4;
         len -= 4;
     }
 
@@ -53,15 +50,13 @@ nxt_murmur_hash2(const void *data, size_t len)
     return h;
 }
 
-
 /* The MurmurHash2 for fixed 4 byte length. */
 
 uint32_t
-nxt_murmur_hash2_uint32(const void *data)
-{
-    uint32_t        h, k;
-    const u_char    *p;
-    const uint32_t  m = 0x5BD1E995;
+nxt_murmur_hash2_uint32(const void *data) {
+    uint32_t       h, k;
+    const u_char  *p;
+    const uint32_t m = 0x5BD1E995;
 
     p = data;
 
@@ -74,7 +69,7 @@ nxt_murmur_hash2_uint32(const void *data)
     k ^= k >> 24;
     k *= m;
 
-    h = 0 ^ 4;
+    h  = 0 ^ 4;
     h *= m;
     h ^= k;
 

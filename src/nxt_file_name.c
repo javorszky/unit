@@ -1,11 +1,9 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
  */
 
 #include <nxt_main.h>
-
 
 /*
  * Supported formats:
@@ -18,26 +16,24 @@
 
 nxt_int_t
 nxt_file_name_create(nxt_mp_t *mp, nxt_file_name_str_t *file_name,
-    const char *format, ...)
-{
+    const char *format, ...) {
     u_char           ch, *p;
     size_t           length;
     va_list          args;
-    nxt_str_t        *v;
+    nxt_str_t       *v;
     nxt_bool_t       zero;
-    const char       *fmt;
-    nxt_file_name_t  *dst, *fn;
+    const char      *fmt;
+    nxt_file_name_t *dst, *fn;
 
     va_start(args, format);
-    fmt = format;
-    zero = 0;
+    fmt    = format;
+    zero   = 0;
     length = 0;
 
-    for ( ;; ) {
+    for (;;) {
         ch = *fmt++;
 
         if (ch != '%') {
-
             if (ch != '\0') {
                 length++;
                 continue;
@@ -49,7 +45,6 @@ nxt_file_name_create(nxt_mp_t *mp, nxt_file_name_str_t *file_name,
         ch = *fmt++;
 
         switch (ch) {
-
         case 'V':
             v = va_arg(args, nxt_str_t *);
 
@@ -117,16 +112,15 @@ nxt_file_name_create(nxt_mp_t *mp, nxt_file_name_str_t *file_name,
     }
 
     file_name->start = fn;
-    dst = fn;
+    dst              = fn;
 
     va_start(args, format);
     fmt = format;
 
-    for ( ;; ) {
+    for (;;) {
         ch = *fmt++;
 
         if (ch != '%') {
-
             if (ch != '\0') {
                 *dst++ = (nxt_file_name_t) ch;
                 continue;
@@ -138,7 +132,6 @@ nxt_file_name_create(nxt_mp_t *mp, nxt_file_name_str_t *file_name,
         ch = *fmt++;
 
         switch (ch) {
-
         case 'V':
             v = va_arg(args, nxt_str_t *);
 
@@ -165,7 +158,7 @@ nxt_file_name_create(nxt_mp_t *mp, nxt_file_name_str_t *file_name,
             ch = *fmt++;
 
             if (nxt_fast_path(ch == 's')) {
-                p = va_arg(args, u_char *);
+                p   = va_arg(args, u_char *);
                 dst = nxt_file_name_add(dst, p, length);
             }
 

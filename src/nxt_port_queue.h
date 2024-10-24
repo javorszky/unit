@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) NGINX, Inc.
  */
@@ -12,28 +11,24 @@
 
 /* Using Numeric Naive Circular Queue as a backend. */
 
-#define NXT_PORT_QUEUE_SIZE      NXT_NNCQ_SIZE
-#define NXT_PORT_QUEUE_MSG_SIZE  31
-
+#define NXT_PORT_QUEUE_SIZE     NXT_NNCQ_SIZE
+#define NXT_PORT_QUEUE_MSG_SIZE 31
 
 typedef struct {
-    uint8_t   size;
-    uint8_t   data[NXT_PORT_QUEUE_MSG_SIZE];
+    uint8_t size;
+    uint8_t data[NXT_PORT_QUEUE_MSG_SIZE];
 } nxt_port_queue_item_t;
 
-
 typedef struct {
-    nxt_nncq_atomic_t      nitems;
-    nxt_nncq_t             free_items;
-    nxt_nncq_t             queue;
-    nxt_port_queue_item_t  items[NXT_PORT_QUEUE_SIZE];
+    nxt_nncq_atomic_t     nitems;
+    nxt_nncq_t            free_items;
+    nxt_nncq_t            queue;
+    nxt_port_queue_item_t items[NXT_PORT_QUEUE_SIZE];
 } nxt_port_queue_t;
 
-
 nxt_inline void
-nxt_port_queue_init(nxt_port_queue_t volatile *q)
-{
-    nxt_nncq_atomic_t  i;
+nxt_port_queue_init(nxt_port_queue_t volatile *q) {
+    nxt_nncq_atomic_t i;
 
     nxt_nncq_init(&q->free_items);
     nxt_nncq_init(&q->queue);
@@ -45,13 +40,11 @@ nxt_port_queue_init(nxt_port_queue_t volatile *q)
     q->nitems = 0;
 }
 
-
 nxt_inline nxt_int_t
 nxt_port_queue_send(nxt_port_queue_t volatile *q, const void *p, uint8_t size,
-    int *notify)
-{
+    int *notify) {
     nxt_nncq_atomic_t      i;
-    nxt_port_queue_item_t  *qi;
+    nxt_port_queue_item_t *qi;
 
     i = nxt_nncq_dequeue(&q->free_items);
     if (i == nxt_nncq_empty(&q->free_items)) {
@@ -73,13 +66,11 @@ nxt_port_queue_send(nxt_port_queue_t volatile *q, const void *p, uint8_t size,
     return NXT_OK;
 }
 
-
 nxt_inline ssize_t
-nxt_port_queue_recv(nxt_port_queue_t volatile *q, void *p)
-{
+nxt_port_queue_recv(nxt_port_queue_t volatile *q, void *p) {
     ssize_t                res;
     nxt_nncq_atomic_t      i;
-    nxt_port_queue_item_t  *qi;
+    nxt_port_queue_item_t *qi;
 
     i = nxt_nncq_dequeue(&q->queue);
     if (i == nxt_nncq_empty(&q->queue)) {

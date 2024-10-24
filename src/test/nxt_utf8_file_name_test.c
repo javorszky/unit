@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
@@ -7,19 +6,18 @@
 #include <nxt_main.h>
 
 
-extern char  **environ;
+extern char **environ;
 
-static nxt_int_t nxt_utf8_file_name_test(nxt_thread_t *thr);
+static nxt_int_t
+nxt_utf8_file_name_test(nxt_thread_t *thr);
 
 
-nxt_module_init_t  nxt_init_modules[1];
-nxt_uint_t         nxt_init_modules_n;
-
+nxt_module_init_t nxt_init_modules[1];
+nxt_uint_t        nxt_init_modules_n;
 
 int nxt_cdecl
-main(int argc, char **argv)
-{
-    nxt_thread_t     *thr;
+main(int argc, char **argv) {
+    nxt_thread_t *thr;
 
     if (nxt_lib_start("utf8_file_name_test", argv, &environ) != NXT_OK) {
         return 1;
@@ -36,19 +34,17 @@ main(int argc, char **argv)
     return 0;
 }
 
-
 static nxt_int_t
-nxt_utf8_file_name_test(nxt_thread_t *thr)
-{
-    u_char               *p, test[4], buf[32];
-    ssize_t              n;
-    uint32_t             uc, lc;
-    nxt_int_t            ret;
-    nxt_task_t           task;
-    nxt_file_t           uc_file, lc_file;
-    const u_char         *pp;
-    nxt_file_name_t      uc_name[10], lc_name[10];
-    static const u_char  utf8[4] = "UTF8";
+nxt_utf8_file_name_test(nxt_thread_t *thr) {
+    u_char             *p, test[4], buf[32];
+    ssize_t             n;
+    uint32_t            uc, lc;
+    nxt_int_t           ret;
+    nxt_task_t          task;
+    nxt_file_t          uc_file, lc_file;
+    const u_char       *pp;
+    nxt_file_name_t     uc_name[10], lc_name[10];
+    static const u_char utf8[4] = "UTF8";
 
     nxt_thread_time_update(thr);
 
@@ -66,7 +62,7 @@ nxt_utf8_file_name_test(nxt_thread_t *thr)
 
     nxt_memzero(&uc_file, sizeof(nxt_file_t));
 
-    uc_file.name = uc_name;
+    uc_file.name      = uc_name;
     uc_file.log_level = NXT_LOG_ALERT;
 
     nxt_memzero(&lc_file, sizeof(nxt_file_t));
@@ -74,10 +70,9 @@ nxt_utf8_file_name_test(nxt_thread_t *thr)
     lc_file.name = lc_name;
 
     task.thread = thr;
-    task.log = thr->log;
+    task.log    = thr->log;
 
     for (uc = 0x41; uc < 0x110000; uc++) {
-
         p = nxt_utf8_encode(&uc_name[5], uc);
 
         if (p == NULL) {
@@ -92,7 +87,7 @@ nxt_utf8_file_name_test(nxt_thread_t *thr)
 
         if (lc == 0xFFFFFFFF) {
             nxt_log_alert(thr->log, "nxt_utf8_lowcase(%05uxD) failed: %05uxD",
-                          uc, lc);
+                uc, lc);
             return NXT_ERROR;
         }
 
@@ -110,7 +105,7 @@ nxt_utf8_file_name_test(nxt_thread_t *thr)
         *p = '\0';
 
         ret = nxt_file_open(&task, &uc_file, NXT_FILE_WRONLY, NXT_FILE_TRUNCATE,
-                            NXT_FILE_DEFAULT_ACCESS);
+            NXT_FILE_DEFAULT_ACCESS);
         if (ret != NXT_OK) {
             return NXT_ERROR;
         }
@@ -122,7 +117,7 @@ nxt_utf8_file_name_test(nxt_thread_t *thr)
         nxt_file_close(&task, &uc_file);
 
         ret = nxt_file_open(&task, &lc_file, NXT_FILE_RDONLY, NXT_FILE_OPEN,
-                            NXT_FILE_DEFAULT_ACCESS);
+            NXT_FILE_DEFAULT_ACCESS);
 
         if (ret == NXT_OK) {
             n = nxt_file_read(&lc_file, test, 4, 0);

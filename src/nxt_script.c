@@ -1,58 +1,53 @@
-
 /*
  * Copyright (C) NGINX, Inc.
  * Copyright (C) Zhidao HONG
  */
 
-#include <nxt_main.h>
-#include <nxt_conf.h>
 #include <nxt_script.h>
 #include <dirent.h>
-
+#include <nxt_conf.h>
+#include <nxt_main.h>
 
 struct nxt_script_s {
-    nxt_str_t         text;
+    nxt_str_t text;
 };
 
-
 typedef struct {
     nxt_str_t         name;
-    nxt_conf_value_t  *value;
-    nxt_mp_t          *mp;
+    nxt_conf_value_t *value;
+    nxt_mp_t         *mp;
 } nxt_script_info_t;
 
-
 typedef struct {
-    nxt_str_t         name;
-    nxt_fd_t          fd;
+    nxt_str_t name;
+    nxt_fd_t  fd;
 } nxt_script_item_t;
 
+static nxt_script_t *
+nxt_script_get(nxt_task_t *task, nxt_str_t *name, nxt_fd_t fd);
+static nxt_conf_value_t *
+nxt_script_details(nxt_mp_t *mp, nxt_script_t *cert);
+static void
+nxt_script_buf_completion(nxt_task_t *task, void *obj, void *data);
 
-static nxt_script_t *nxt_script_get(nxt_task_t *task, nxt_str_t *name,
-    nxt_fd_t fd);
-static nxt_conf_value_t *nxt_script_details(nxt_mp_t *mp, nxt_script_t *cert);
-static void nxt_script_buf_completion(nxt_task_t *task, void *obj, void *data);
 
-
-static nxt_lvlhsh_t  nxt_script_info;
-
+static nxt_lvlhsh_t nxt_script_info;
 
 nxt_script_t *
 nxt_script_new(nxt_task_t *task, nxt_str_t *name, u_char *data, size_t size,
-    u_char *error)
-{
-    u_char        *start;
-    njs_vm_t      *vm;
+    u_char *error) {
+    u_char       *start;
+    njs_vm_t     *vm;
     njs_str_t     mod_name;
-    njs_mod_t     *mod;
+    njs_mod_t    *mod;
     njs_vm_opt_t  opts;
-    nxt_script_t  *script;
+    nxt_script_t *script;
 
     njs_vm_opt_init(&opts);
 
     opts.backtrace = 1;
 
-    opts.file.start = (u_char *) "default";
+    opts.file.start  = (u_char *) "default";
     opts.file.length = 7;
 
     vm = njs_vm_create(&opts);
@@ -61,7 +56,7 @@ nxt_script_new(nxt_task_t *task, nxt_str_t *name, u_char *data, size_t size,
     }
 
     mod_name.length = name->length;
-    mod_name.start = name->start;
+    mod_name.start  = name->start;
 
     start = data;
 
@@ -80,7 +75,7 @@ nxt_script_new(nxt_task_t *task, nxt_str_t *name, u_char *data, size_t size,
     }
 
     script->text.length = size;
-    script->text.start = (u_char *) script + sizeof(nxt_script_t);
+    script->text.start  = (u_char *) script + sizeof(nxt_script_t);
 
     nxt_memcpy(script->text.start, data, size);
 
@@ -95,13 +90,11 @@ fail:
     return NULL;
 }
 
-
 static nxt_script_t *
-nxt_script_get(nxt_task_t *task, nxt_str_t *name, nxt_fd_t fd)
-{
+nxt_script_get(nxt_task_t *task, nxt_str_t *name, nxt_fd_t fd) {
     nxt_int_t     ret;
     nxt_str_t     text;
-    nxt_script_t  *script;
+    nxt_script_t *script;
     u_char        error[NXT_MAX_ERROR_STR];
 
     ret = nxt_script_file_read(fd, &text);
@@ -116,18 +109,14 @@ nxt_script_get(nxt_task_t *task, nxt_str_t *name, nxt_fd_t fd)
     return script;
 }
 
-
 void
-nxt_script_destroy(nxt_script_t *script)
-{
+nxt_script_destroy(nxt_script_t *script) {
     nxt_free(script);
 }
 
-
 static nxt_int_t
-nxt_script_info_hash_test(nxt_lvlhsh_query_t *lhq, void *data)
-{
-    nxt_script_info_t  *info;
+nxt_script_info_hash_test(nxt_lvlhsh_query_t *lhq, void *data) {
+    nxt_script_info_t *info;
 
     info = data;
 
@@ -138,23 +127,18 @@ nxt_script_info_hash_test(nxt_lvlhsh_query_t *lhq, void *data)
     return NXT_DECLINED;
 }
 
-
-static const nxt_lvlhsh_proto_t  nxt_script_info_hash_proto
-    nxt_aligned(64) =
-{
+static const nxt_lvlhsh_proto_t nxt_script_info_hash_proto nxt_aligned(64) = {
     NXT_LVLHSH_DEFAULT,
     nxt_script_info_hash_test,
     nxt_lvlhsh_alloc,
     nxt_lvlhsh_free,
 };
 
-
 void
-nxt_script_info_init(nxt_task_t *task, nxt_array_t *scripts)
-{
+nxt_script_info_init(nxt_task_t *task, nxt_array_t *scripts) {
     uint32_t           i;
-    nxt_script_t       *script;
-    nxt_script_item_t  *item;
+    nxt_script_t      *script;
+    nxt_script_item_t *item;
 
     item = scripts->elts;
 
@@ -173,15 +157,13 @@ nxt_script_info_init(nxt_task_t *task, nxt_array_t *scripts)
     }
 }
 
-
 nxt_int_t
-nxt_script_info_save(nxt_str_t *name, nxt_script_t *script)
-{
-    nxt_mp_t            *mp;
-    nxt_int_t           ret;
-    nxt_conf_value_t    *value;
-    nxt_script_info_t   *info;
-    nxt_lvlhsh_query_t  lhq;
+nxt_script_info_save(nxt_str_t *name, nxt_script_t *script) {
+    nxt_mp_t          *mp;
+    nxt_int_t          ret;
+    nxt_conf_value_t  *value;
+    nxt_script_info_t *info;
+    nxt_lvlhsh_query_t lhq;
 
     mp = nxt_mp_create(1024, 128, 256, 32);
     if (nxt_slow_path(mp == NULL)) {
@@ -203,14 +185,14 @@ nxt_script_info_save(nxt_str_t *name, nxt_script_t *script)
         goto fail;
     }
 
-    info->mp = mp;
+    info->mp    = mp;
     info->value = value;
 
     lhq.key_hash = nxt_djb_hash(name->start, name->length);
-    lhq.replace = 1;
-    lhq.key = *name;
-    lhq.value = info;
-    lhq.proto = &nxt_script_info_hash_proto;
+    lhq.replace  = 1;
+    lhq.key      = *name;
+    lhq.value    = info;
+    lhq.proto    = &nxt_script_info_hash_proto;
 
     ret = nxt_lvlhsh_insert(&nxt_script_info, &lhq);
     if (nxt_slow_path(ret != NXT_OK)) {
@@ -230,17 +212,15 @@ fail:
     return NXT_ERROR;
 }
 
-
 nxt_conf_value_t *
-nxt_script_info_get(nxt_str_t *name)
-{
-    nxt_int_t           ret;
-    nxt_script_info_t   *info;
-    nxt_lvlhsh_query_t  lhq;
+nxt_script_info_get(nxt_str_t *name) {
+    nxt_int_t          ret;
+    nxt_script_info_t *info;
+    nxt_lvlhsh_query_t lhq;
 
     lhq.key_hash = nxt_djb_hash(name->start, name->length);
-    lhq.key = *name;
-    lhq.proto = &nxt_script_info_hash_proto;
+    lhq.key      = *name;
+    lhq.proto    = &nxt_script_info_hash_proto;
 
     ret = nxt_lvlhsh_find(&nxt_script_info, &lhq);
     if (ret != NXT_OK) {
@@ -252,13 +232,11 @@ nxt_script_info_get(nxt_str_t *name)
     return info->value;
 }
 
-
 nxt_conf_value_t *
-nxt_script_info_get_all(nxt_mp_t *mp)
-{
+nxt_script_info_get_all(nxt_mp_t *mp) {
     uint32_t           i;
-    nxt_conf_value_t   *all;
-    nxt_script_info_t  *info;
+    nxt_conf_value_t  *all;
+    nxt_script_info_t *info;
     nxt_lvlhsh_each_t  lhe;
 
     nxt_lvlhsh_each_init(&lhe, &nxt_script_info_hash_proto);
@@ -291,11 +269,9 @@ nxt_script_info_get_all(nxt_mp_t *mp)
     return all;
 }
 
-
 static nxt_conf_value_t *
-nxt_script_details(nxt_mp_t *mp, nxt_script_t *script)
-{
-    nxt_conf_value_t  *value;
+nxt_script_details(nxt_mp_t *mp, nxt_script_t *script) {
+    nxt_conf_value_t *value;
 
     value = nxt_conf_create_object(mp, 0);
     if (nxt_slow_path(value == NULL)) {
@@ -307,17 +283,15 @@ nxt_script_details(nxt_mp_t *mp, nxt_script_t *script)
     return value;
 }
 
-
 nxt_int_t
-nxt_script_info_delete(nxt_str_t *name)
-{
-    nxt_int_t           ret;
-    nxt_script_info_t   *info;
-    nxt_lvlhsh_query_t  lhq;
+nxt_script_info_delete(nxt_str_t *name) {
+    nxt_int_t          ret;
+    nxt_script_info_t *info;
+    nxt_lvlhsh_query_t lhq;
 
     lhq.key_hash = nxt_djb_hash(name->start, name->length);
-    lhq.key = *name;
-    lhq.proto = &nxt_script_info_hash_proto;
+    lhq.key      = *name;
+    lhq.proto    = &nxt_script_info_hash_proto;
 
     ret = nxt_lvlhsh_delete(&nxt_script_info, &lhq);
 
@@ -329,20 +303,18 @@ nxt_script_info_delete(nxt_str_t *name)
     return ret;
 }
 
-
 nxt_array_t *
-nxt_script_store_load(nxt_task_t *task, nxt_mp_t *mp)
-{
-    DIR                *dir;
+nxt_script_store_load(nxt_task_t *task, nxt_mp_t *mp) {
+    DIR               *dir;
     size_t             size, alloc;
-    u_char             *buf, *p;
+    u_char            *buf, *p;
     nxt_str_t          name;
     nxt_int_t          ret;
     nxt_file_t         file;
-    nxt_array_t        *scripts;
-    nxt_runtime_t      *rt;
-    struct dirent      *de;
-    nxt_script_item_t  *item;
+    nxt_array_t       *scripts;
+    nxt_runtime_t     *rt;
+    struct dirent     *de;
+    nxt_script_item_t *item;
 
     rt = task->thread->runtime;
 
@@ -356,27 +328,27 @@ nxt_script_store_load(nxt_task_t *task, nxt_mp_t *mp)
         return NULL;
     }
 
-    buf = NULL;
+    buf   = NULL;
     alloc = 0;
 
     dir = opendir((char *) rt->scripts.start);
     if (nxt_slow_path(dir == NULL)) {
-        nxt_alert(task, "opendir(\"%s\") failed %E",
-                  rt->scripts.start, nxt_errno);
+        nxt_alert(task, "opendir(\"%s\") failed %E", rt->scripts.start,
+            nxt_errno);
         goto fail;
     }
 
-    for ( ;; ) {
+    for (;;) {
         de = readdir(dir);
         if (de == NULL) {
             break;
         }
 
-        nxt_debug(task, "readdir(\"%s\"): \"%s\"",
-                  rt->scripts.start, de->d_name);
+        nxt_debug(task, "readdir(\"%s\"): \"%s\"", rt->scripts.start,
+            de->d_name);
 
         name.length = nxt_strlen(de->d_name);
-        name.start = (u_char *) de->d_name;
+        name.start  = (u_char *) de->d_name;
 
         if (nxt_str_eq(&name, ".", 1) || nxt_str_eq(&name, "..", 2)) {
             continue;
@@ -400,7 +372,7 @@ nxt_script_store_load(nxt_task_t *task, nxt_mp_t *mp)
             }
 
             alloc = size;
-            buf = p;
+            buf   = p;
         }
 
         p = nxt_cpymem(buf, rt->scripts.start, rt->scripts.length);
@@ -411,7 +383,7 @@ nxt_script_store_load(nxt_task_t *task, nxt_mp_t *mp)
         file.name = buf;
 
         ret = nxt_file_open(task, &file, NXT_FILE_RDONLY, NXT_FILE_OPEN,
-                            NXT_FILE_OWNER_ACCESS);
+            NXT_FILE_OWNER_ACCESS);
 
         if (nxt_slow_path(ret != NXT_OK)) {
             nxt_array_remove_last(scripts);
@@ -448,12 +420,10 @@ fail:
     return NULL;
 }
 
-
 void
-nxt_script_store_release(nxt_array_t *scripts)
-{
+nxt_script_store_release(nxt_array_t *scripts) {
     uint32_t           i;
-    nxt_script_item_t  *item;
+    nxt_script_item_t *item;
 
     item = scripts->elts;
 
@@ -464,16 +434,14 @@ nxt_script_store_release(nxt_array_t *scripts)
     nxt_array_destroy(scripts);
 }
 
-
 void
 nxt_script_store_get(nxt_task_t *task, nxt_str_t *name, nxt_mp_t *mp,
-    nxt_port_rpc_handler_t handler, void *ctx)
-{
+    nxt_port_rpc_handler_t handler, void *ctx) {
     uint32_t       stream;
     nxt_int_t      ret;
-    nxt_buf_t      *b;
-    nxt_port_t     *main_port, *recv_port;
-    nxt_runtime_t  *rt;
+    nxt_buf_t     *b;
+    nxt_port_t    *main_port, *recv_port;
+    nxt_runtime_t *rt;
 
     b = nxt_buf_mem_alloc(mp, name->length + 1, 0);
     if (nxt_slow_path(b == NULL)) {
@@ -486,18 +454,18 @@ nxt_script_store_get(nxt_task_t *task, nxt_str_t *name, nxt_mp_t *mp,
     nxt_buf_cpystr(b, name);
     *b->mem.free++ = '\0';
 
-    rt = task->thread->runtime;
+    rt        = task->thread->runtime;
     main_port = rt->port_by_type[NXT_PROCESS_MAIN];
     recv_port = rt->port_by_type[rt->type];
 
     stream = nxt_port_rpc_register_handler(task, recv_port, handler, handler,
-                                           -1, ctx);
+        -1, ctx);
     if (nxt_slow_path(stream == 0)) {
         goto fail;
     }
 
     ret = nxt_port_socket_write(task, main_port, NXT_PORT_MSG_SCRIPT_GET, -1,
-                                stream, recv_port->id, b);
+        stream, recv_port->id, b);
 
     if (nxt_slow_path(ret != NXT_OK)) {
         nxt_port_rpc_cancel(task, recv_port, stream);
@@ -511,14 +479,12 @@ fail:
     handler(task, NULL, ctx);
 }
 
-
 static void
-nxt_script_buf_completion(nxt_task_t *task, void *obj, void *data)
-{
-    nxt_mp_t   *mp;
-    nxt_buf_t  *b;
+nxt_script_buf_completion(nxt_task_t *task, void *obj, void *data) {
+    nxt_mp_t  *mp;
+    nxt_buf_t *b;
 
-    b = obj;
+    b  = obj;
     mp = b->data;
     nxt_assert(b->next == NULL);
 
@@ -526,39 +492,35 @@ nxt_script_buf_completion(nxt_task_t *task, void *obj, void *data)
     nxt_mp_release(mp);
 }
 
-
 void
-nxt_script_store_get_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
-{
-    u_char               *p;
-    nxt_int_t            ret;
-    nxt_str_t            name;
-    nxt_file_t           file;
-    nxt_port_t           *port;
-    nxt_runtime_t        *rt;
-    nxt_port_msg_type_t  type;
+nxt_script_store_get_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg) {
+    u_char             *p;
+    nxt_int_t           ret;
+    nxt_str_t           name;
+    nxt_file_t          file;
+    nxt_port_t         *port;
+    nxt_runtime_t      *rt;
+    nxt_port_msg_type_t type;
 
     port = nxt_runtime_port_find(task->thread->runtime, msg->port_msg.pid,
-                                 msg->port_msg.reply_port);
+        msg->port_msg.reply_port);
 
     if (nxt_slow_path(port == NULL)) {
         nxt_alert(task, "process port not found (pid %PI, reply_port %d)",
-                  msg->port_msg.pid, msg->port_msg.reply_port);
+            msg->port_msg.pid, msg->port_msg.reply_port);
         return;
     }
 
     if (nxt_slow_path(port->type != NXT_PROCESS_CONTROLLER
-                      && port->type != NXT_PROCESS_ROUTER))
-    {
-        nxt_alert(task, "process %PI cannot store scripts",
-                  msg->port_msg.pid);
+                      && port->type != NXT_PROCESS_ROUTER)) {
+        nxt_alert(task, "process %PI cannot store scripts", msg->port_msg.pid);
         return;
     }
 
     nxt_memzero(&file, sizeof(nxt_file_t));
 
     file.fd = -1;
-    type = NXT_PORT_MSG_RPC_ERROR;
+    type    = NXT_PORT_MSG_RPC_ERROR;
 
     rt = task->thread->runtime;
 
@@ -567,7 +529,7 @@ nxt_script_store_get_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
         goto error;
     }
 
-    name.start = msg->buf->mem.pos;
+    name.start  = msg->buf->mem.pos;
     name.length = nxt_strlen(name.start);
 
     file.name = nxt_malloc(rt->scripts.length + name.length + 1);
@@ -579,7 +541,7 @@ nxt_script_store_get_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
     p = nxt_cpymem(p, name.start, name.length + 1);
 
     ret = nxt_file_open(task, &file, NXT_FILE_RDWR, NXT_FILE_CREATE_OR_OPEN,
-                        NXT_FILE_OWNER_ACCESS);
+        NXT_FILE_OWNER_ACCESS);
 
     nxt_free(file.name);
 
@@ -590,16 +552,14 @@ nxt_script_store_get_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
 error:
 
     (void) nxt_port_socket_write(task, port, type, file.fd,
-                                 msg->port_msg.stream, 0, NULL);
+        msg->port_msg.stream, 0, NULL);
 }
 
-
 void
-nxt_script_store_delete(nxt_task_t *task, nxt_str_t *name, nxt_mp_t *mp)
-{
-    nxt_buf_t      *b;
-    nxt_port_t     *main_port;
-    nxt_runtime_t  *rt;
+nxt_script_store_delete(nxt_task_t *task, nxt_str_t *name, nxt_mp_t *mp) {
+    nxt_buf_t     *b;
+    nxt_port_t    *main_port;
+    nxt_runtime_t *rt;
 
     b = nxt_buf_mem_alloc(mp, name->length + 1, 0);
 
@@ -607,25 +567,23 @@ nxt_script_store_delete(nxt_task_t *task, nxt_str_t *name, nxt_mp_t *mp)
         nxt_buf_cpystr(b, name);
         *b->mem.free++ = '\0';
 
-        rt = task->thread->runtime;
+        rt        = task->thread->runtime;
         main_port = rt->port_by_type[NXT_PROCESS_MAIN];
 
         (void) nxt_port_socket_write(task, main_port,
-                                     NXT_PORT_MSG_SCRIPT_DELETE, -1, 0, 0, b);
+            NXT_PORT_MSG_SCRIPT_DELETE, -1, 0, 0, b);
     }
 }
 
-
 void
-nxt_script_store_delete_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
-{
-    u_char           *p;
+nxt_script_store_delete_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg) {
+    u_char          *p;
     nxt_str_t        name;
-    nxt_port_t       *ctl_port;
-    nxt_runtime_t    *rt;
-    nxt_file_name_t  *path;
+    nxt_port_t      *ctl_port;
+    nxt_runtime_t   *rt;
+    nxt_file_name_t *path;
 
-    rt = task->thread->runtime;
+    rt       = task->thread->runtime;
     ctl_port = rt->port_by_type[NXT_PROCESS_CONTROLLER];
 
     if (nxt_slow_path(ctl_port == NULL)) {
@@ -635,7 +593,7 @@ nxt_script_store_delete_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
 
     if (nxt_slow_path(nxt_recv_msg_cmsg_pid(msg) != ctl_port->pid)) {
         nxt_alert(task, "process %PI cannot delete scripts",
-                  nxt_recv_msg_cmsg_pid(msg));
+            nxt_recv_msg_cmsg_pid(msg));
         return;
     }
 
@@ -644,7 +602,7 @@ nxt_script_store_delete_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
         return;
     }
 
-    name.start = msg->buf->mem.pos;
+    name.start  = msg->buf->mem.pos;
     name.length = nxt_strlen(name.start);
 
     path = nxt_malloc(rt->scripts.length + name.length + 1);
@@ -659,14 +617,12 @@ nxt_script_store_delete_handler(nxt_task_t *task, nxt_port_recv_msg_t *msg)
     }
 }
 
-
 nxt_int_t
-nxt_script_file_read(nxt_fd_t fd, nxt_str_t *str)
-{
-    ssize_t          n;
-    nxt_int_t        ret;
-    nxt_file_t       file;
-    nxt_file_info_t  fi;
+nxt_script_file_read(nxt_fd_t fd, nxt_str_t *str) {
+    ssize_t         n;
+    nxt_int_t       ret;
+    nxt_file_t      file;
+    nxt_file_info_t fi;
 
     nxt_memzero(&file, sizeof(nxt_file_t));
 
@@ -683,7 +639,7 @@ nxt_script_file_read(nxt_fd_t fd, nxt_str_t *str)
     }
 
     str->length = nxt_file_size(&fi);
-    str->start = nxt_malloc(str->length);
+    str->start  = nxt_malloc(str->length);
     if (nxt_slow_path(str->start == NULL)) {
         return NXT_ERROR;
     }

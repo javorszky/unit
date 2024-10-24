@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
@@ -15,28 +14,28 @@
  */
 
 
-#define NXT_RANDOM_KEY_SIZE  128
+#define NXT_RANDOM_KEY_SIZE 128
 
 
-nxt_inline void nxt_random_start_schedule(nxt_random_t *r);
-static void nxt_random_stir(nxt_random_t *r);
-static void nxt_random_add(nxt_random_t *r, const u_char *key, uint32_t len);
-nxt_inline uint8_t nxt_random_byte(nxt_random_t *r);
-
+nxt_inline void
+nxt_random_start_schedule(nxt_random_t *r);
+static void
+nxt_random_stir(nxt_random_t *r);
+static void
+nxt_random_add(nxt_random_t *r, const u_char *key, uint32_t len);
+nxt_inline uint8_t
+nxt_random_byte(nxt_random_t *r);
 
 void
-nxt_random_init(nxt_random_t *r)
-{
+nxt_random_init(nxt_random_t *r) {
     nxt_random_start_schedule(r);
 
     nxt_random_stir(r);
 }
 
-
 nxt_inline void
-nxt_random_start_schedule(nxt_random_t *r)
-{
-    nxt_uint_t  i;
+nxt_random_start_schedule(nxt_random_t *r) {
+    nxt_uint_t i;
 
     r->i = 0;
     r->j = 0;
@@ -46,16 +45,15 @@ nxt_random_start_schedule(nxt_random_t *r)
     }
 }
 
-
 static void
-nxt_random_stir(nxt_random_t *r)
-{
-    int             fd;
-    ssize_t         n;
-    struct timeval  tv;
+nxt_random_stir(nxt_random_t *r) {
+    int            fd;
+    ssize_t        n;
+    struct timeval tv;
+
     union {
-        uint32_t    value[4];
-        u_char      bytes[NXT_RANDOM_KEY_SIZE];
+        uint32_t value[4];
+        u_char   bytes[NXT_RANDOM_KEY_SIZE];
     } key;
 
 #if (NXT_HAVE_GETRANDOM)
@@ -113,15 +111,13 @@ nxt_random_stir(nxt_random_t *r)
     r->count = 400000;
 }
 
-
 static void
-nxt_random_add(nxt_random_t *r, const u_char *key, uint32_t len)
-{
-    uint8_t   val;
-    uint32_t  n;
+nxt_random_add(nxt_random_t *r, const u_char *key, uint32_t len) {
+    uint8_t  val;
+    uint32_t n;
 
     for (n = 0; n < 256; n++) {
-        val = r->s[r->i];
+        val   = r->s[r->i];
         r->j += val + key[n % len];
 
         r->s[r->i] = r->s[r->j];
@@ -136,11 +132,9 @@ nxt_random_add(nxt_random_t *r, const u_char *key, uint32_t len)
     r->j = r->i;
 }
 
-
 uint32_t
-nxt_random(nxt_random_t *r)
-{
-    uint32_t  val;
+nxt_random(nxt_random_t *r) {
+    uint32_t val;
 
     r->count--;
 
@@ -156,17 +150,15 @@ nxt_random(nxt_random_t *r)
     return val;
 }
 
-
 nxt_inline uint8_t
-nxt_random_byte(nxt_random_t *r)
-{
-    uint8_t  si, sj;
+nxt_random_byte(nxt_random_t *r) {
+    uint8_t si, sj;
 
     r->i++;
-    si = r->s[r->i];
+    si    = r->s[r->i];
     r->j += si;
 
-    sj = r->s[r->j];
+    sj         = r->s[r->j];
     r->s[r->i] = sj;
     r->s[r->j] = si;
 
@@ -179,10 +171,9 @@ nxt_random_byte(nxt_random_t *r)
 #if (NXT_TESTS)
 
 nxt_int_t
-nxt_random_test(nxt_thread_t *thr)
-{
-    nxt_uint_t    n;
-    nxt_random_t  r;
+nxt_random_test(nxt_thread_t *thr) {
+    nxt_uint_t   n;
+    nxt_random_t r;
 
     nxt_random_start_schedule(&r);
 
@@ -196,7 +187,6 @@ nxt_random_test(nxt_thread_t *thr)
      */
 
     if (nxt_random(&r) == 0xD6270B27) {
-
         for (n = 100000; n != 0; n--) {
             (void) nxt_random(&r);
         }

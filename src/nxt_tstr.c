@@ -1,10 +1,8 @@
-
 /*
  * Copyright (C) NGINX, Inc.
  */
 
 #include <nxt_main.h>
-
 
 typedef enum {
     NXT_TSTR_CONST = 0,
@@ -14,41 +12,35 @@ typedef enum {
 #endif
 } nxt_tstr_type_t;
 
-
 struct nxt_tstr_s {
-    nxt_str_t           str;
+    nxt_str_t str;
 
     union {
-        nxt_var_t       *var;
+        nxt_var_t *var;
 #if (NXT_HAVE_NJS)
-        nxt_js_t        *js;
+        nxt_js_t *js;
 #endif
     } u;
 
-    nxt_tstr_flags_t    flags;
-    nxt_tstr_type_t     type;
+    nxt_tstr_flags_t flags;
+    nxt_tstr_type_t  type;
 };
-
 
 struct nxt_tstr_query_s {
-    nxt_mp_t            *pool;
+    nxt_mp_t *pool;
 
-    nxt_tstr_state_t    *state;
-    nxt_tstr_cache_t    *cache;
+    nxt_tstr_state_t *state;
+    nxt_tstr_cache_t *cache;
 
-    void                *ctx;
-    void                *data;
+    void *ctx;
+    void *data;
 };
 
-
-#define nxt_tstr_is_js(str)                                         \
-    nxt_strchr_start(str, '`')
-
+#define nxt_tstr_is_js(str) nxt_strchr_start(str, '`')
 
 nxt_tstr_state_t *
-nxt_tstr_state_new(nxt_mp_t *mp, nxt_bool_t test)
-{
-    nxt_tstr_state_t  *state;
+nxt_tstr_state_new(nxt_mp_t *mp, nxt_bool_t test) {
+    nxt_tstr_state_t *state;
 
     state = nxt_mp_get(mp, sizeof(nxt_tstr_state_t));
     if (nxt_slow_path(state == NULL)) {
@@ -73,13 +65,11 @@ nxt_tstr_state_new(nxt_mp_t *mp, nxt_bool_t test)
     return state;
 }
 
-
 nxt_tstr_t *
 nxt_tstr_compile(nxt_tstr_state_t *state, const nxt_str_t *str,
-    nxt_tstr_flags_t flags)
-{
-    u_char      *p;
-    nxt_tstr_t  *tstr;
+    nxt_tstr_flags_t flags) {
+    u_char     *p;
+    nxt_tstr_t *tstr;
     nxt_bool_t  strz;
 
     strz = (flags & NXT_TSTR_STRZ) != 0;
@@ -105,10 +95,9 @@ nxt_tstr_compile(nxt_tstr_state_t *state, const nxt_str_t *str,
     tstr->flags = flags;
 
     if (nxt_tstr_is_js(str)) {
-
 #if (NXT_HAVE_NJS)
 
-        nxt_str_t  tpl;
+        nxt_str_t tpl;
 
         tstr->type = NXT_TSTR_JS;
 
@@ -140,11 +129,9 @@ nxt_tstr_compile(nxt_tstr_state_t *state, const nxt_str_t *str,
     return tstr;
 }
 
-
 nxt_int_t
-nxt_tstr_test(nxt_tstr_state_t *state, nxt_str_t *str, u_char *error)
-{
-    u_char  *p;
+nxt_tstr_test(nxt_tstr_state_t *state, nxt_str_t *str, u_char *error) {
+    u_char *p;
 
     if (nxt_tstr_is_js(str)) {
 #if (NXT_HAVE_NJS)
@@ -152,8 +139,8 @@ nxt_tstr_test(nxt_tstr_state_t *state, nxt_str_t *str, u_char *error)
 
 #else
         nxt_sprintf(error, error + NXT_MAX_ERROR_STR,
-                    "Unit is built without support of njs: "
-                    "\"--njs\" ./configure option is missing.%Z");
+            "Unit is built without support of njs: "
+            "\"--njs\" ./configure option is missing.%Z");
         return NXT_ERROR;
 #endif
 
@@ -168,13 +155,11 @@ nxt_tstr_test(nxt_tstr_state_t *state, nxt_str_t *str, u_char *error)
     return NXT_OK;
 }
 
-
 nxt_int_t
-nxt_tstr_state_done(nxt_tstr_state_t *state, u_char *error)
-{
+nxt_tstr_state_done(nxt_tstr_state_t *state, u_char *error) {
 #if (NXT_HAVE_NJS)
     if (!state->test) {
-        nxt_int_t  ret;
+        nxt_int_t ret;
 
         ret = nxt_js_compile(state->jcf);
         if (nxt_slow_path(ret != NXT_OK)) {
@@ -183,23 +168,19 @@ nxt_tstr_state_done(nxt_tstr_state_t *state, u_char *error)
     }
 #endif
 
-     return NXT_OK;
+    return NXT_OK;
 }
 
-
 void
-nxt_tstr_state_release(nxt_tstr_state_t *state)
-{
+nxt_tstr_state_release(nxt_tstr_state_t *state) {
 #if (NXT_HAVE_NJS)
     nxt_js_conf_release(state->jcf);
 #endif
 }
 
-
 nxt_int_t
 nxt_tstr_cond_compile(nxt_tstr_state_t *state, nxt_str_t *str,
-    nxt_tstr_cond_t *cond)
-{
+    nxt_tstr_cond_t *cond) {
     if (str->length > 0 && str->start[0] == '!') {
         cond->negate = 1;
 
@@ -215,17 +196,13 @@ nxt_tstr_cond_compile(nxt_tstr_state_t *state, nxt_str_t *str,
     return NXT_OK;
 }
 
-
 nxt_bool_t
-nxt_tstr_is_const(nxt_tstr_t *tstr)
-{
+nxt_tstr_is_const(nxt_tstr_t *tstr) {
     return (tstr->type == NXT_TSTR_CONST);
 }
 
-
 void
-nxt_tstr_str(nxt_tstr_t *tstr, nxt_str_t *str)
-{
+nxt_tstr_str(nxt_tstr_t *tstr, nxt_str_t *str) {
     *str = tstr->str;
 
     if (tstr->flags & NXT_TSTR_STRZ) {
@@ -233,12 +210,10 @@ nxt_tstr_str(nxt_tstr_t *tstr, nxt_str_t *str)
     }
 }
 
-
 nxt_int_t
 nxt_tstr_query_init(nxt_tstr_query_t **query_p, nxt_tstr_state_t *state,
-    nxt_tstr_cache_t *cache, void *ctx, nxt_mp_t *mp)
-{
-    nxt_tstr_query_t  *query;
+    nxt_tstr_cache_t *cache, void *ctx, nxt_mp_t *mp) {
+    nxt_tstr_query_t *query;
 
     query = *query_p;
 
@@ -249,22 +224,20 @@ nxt_tstr_query_init(nxt_tstr_query_t **query_p, nxt_tstr_state_t *state,
         }
     }
 
-    query->pool = mp;
+    query->pool  = mp;
     query->state = state;
     query->cache = cache;
-    query->ctx = ctx;
+    query->ctx   = ctx;
 
     *query_p = query;
 
     return NXT_OK;
 }
 
-
 nxt_int_t
 nxt_tstr_query(nxt_task_t *task, nxt_tstr_query_t *query, nxt_tstr_t *tstr,
-    nxt_str_t *val)
-{
-    nxt_int_t  ret;
+    nxt_str_t *val) {
+    nxt_int_t ret;
 
     if (nxt_tstr_is_const(tstr)) {
         nxt_tstr_str(tstr, val);
@@ -273,8 +246,7 @@ nxt_tstr_query(nxt_task_t *task, nxt_tstr_query_t *query, nxt_tstr_t *tstr,
 
     if (tstr->type == NXT_TSTR_VAR) {
         ret = nxt_var_interpreter(task, query->state, &query->cache->var,
-                                  tstr->u.var, val, query->ctx,
-                                  tstr->flags & NXT_TSTR_LOGGING);
+            tstr->u.var, val, query->ctx, tstr->flags & NXT_TSTR_LOGGING);
 
         if (nxt_slow_path(ret != NXT_OK)) {
             return NXT_ERROR;
@@ -283,7 +255,7 @@ nxt_tstr_query(nxt_task_t *task, nxt_tstr_query_t *query, nxt_tstr_t *tstr,
     } else {
 #if (NXT_HAVE_NJS)
         ret = nxt_js_call(task, query->state->jcf, &query->cache->js,
-                          tstr->u.js, val, query->ctx);
+            tstr->u.js, val, query->ctx);
 
         if (nxt_slow_path(ret != NXT_OK)) {
             return NXT_ERROR;
@@ -296,7 +268,7 @@ nxt_tstr_query(nxt_task_t *task, nxt_tstr_query_t *query, nxt_tstr_t *tstr,
     }
 
 #if (NXT_DEBUG)
-    nxt_str_t  str;
+    nxt_str_t str;
 
     nxt_tstr_str(tstr, &str);
 
@@ -306,10 +278,8 @@ nxt_tstr_query(nxt_task_t *task, nxt_tstr_query_t *query, nxt_tstr_t *tstr,
     return NXT_OK;
 }
 
-
 void
-nxt_tstr_query_release(nxt_tstr_query_t *query)
-{
+nxt_tstr_query_release(nxt_tstr_query_t *query) {
 #if (NXT_HAVE_NJS)
     nxt_js_release(&query->cache->js);
 #endif

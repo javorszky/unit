@@ -1,37 +1,32 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
  */
 
-#include <nxt_main.h>
 #include "nxt_tests.h"
+#include <nxt_main.h>
 
 
-#define TIMES  1000
-
+#define TIMES 1000
 
 typedef struct {
-    size_t      size;
-    size_t      alignment;
-    nxt_bool_t  tight;
+    size_t     size;
+    size_t     alignment;
+    nxt_bool_t tight;
 } nxt_malloc_size_t;
-
 
 static nxt_malloc_size_t *
 nxt_malloc_run_test(nxt_thread_t *thr, nxt_malloc_size_t *last, size_t size,
-    nxt_uint_t times)
-{
+    nxt_uint_t times) {
     size_t         a, s, alignment;
     uintptr_t      n;
     nxt_uint_t     i, tight;
-    static u_char  *p[TIMES + 1];
+    static u_char *p[TIMES + 1];
 
     alignment = (size_t) -1;
-    tight = 0;
+    tight     = 0;
 
     for (i = 1; i < times; i++) {
-
         p[i] = nxt_malloc(size);
         if (p[i] == NULL) {
             return NULL;
@@ -73,20 +68,18 @@ nxt_malloc_run_test(nxt_thread_t *thr, nxt_malloc_size_t *last, size_t size,
 
     last++;
 
-    last->size = size;
+    last->size      = size;
     last->alignment = alignment;
-    last->tight = times * 9 / 10 < tight;
+    last->tight     = times * 9 / 10 < tight;
 
     return last;
 }
 
-
 nxt_int_t
-nxt_malloc_test(nxt_thread_t *thr)
-{
-    size_t                    size;
-    nxt_malloc_size_t         *last, *s;
-    static nxt_malloc_size_t  sizes[100];
+nxt_malloc_test(nxt_thread_t *thr) {
+    size_t                   size;
+    nxt_malloc_size_t       *last, *s;
+    static nxt_malloc_size_t sizes[100];
 
     nxt_log_error(NXT_LOG_NOTICE, thr->log, "malloc test started");
 
@@ -115,8 +108,8 @@ nxt_malloc_test(nxt_thread_t *thr)
 
     for (s = &sizes[1]; s <= last; s++) {
         nxt_log_error(NXT_LOG_NOTICE, thr->log,
-                      "malloc sizes: %uz-%uz alignment:%uz tight:%ui",
-                      s[-1].size + 1, s->size, s->alignment, s->tight);
+            "malloc sizes: %uz-%uz alignment:%uz tight:%ui", s[-1].size + 1,
+            s->size, s->alignment, s->tight);
     }
 
     return NXT_OK;

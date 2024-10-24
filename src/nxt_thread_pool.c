@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
@@ -7,19 +6,22 @@
 #include <nxt_main.h>
 
 
-static nxt_int_t nxt_thread_pool_init(nxt_thread_pool_t *tp);
-static void nxt_thread_pool_exit(nxt_task_t *task, void *obj, void *data);
-static void nxt_thread_pool_start(void *ctx);
-static void nxt_thread_pool_loop(void *ctx);
-static void nxt_thread_pool_wait(nxt_thread_pool_t *tp);
-
+static nxt_int_t
+nxt_thread_pool_init(nxt_thread_pool_t *tp);
+static void
+nxt_thread_pool_exit(nxt_task_t *task, void *obj, void *data);
+static void
+nxt_thread_pool_start(void *ctx);
+static void
+nxt_thread_pool_loop(void *ctx);
+static void
+nxt_thread_pool_wait(nxt_thread_pool_t *tp);
 
 nxt_thread_pool_t *
 nxt_thread_pool_create(nxt_uint_t max_threads, nxt_nsec_t timeout,
     nxt_thread_pool_init_t init, nxt_event_engine_t *engine,
-    nxt_work_handler_t exit)
-{
-    nxt_thread_pool_t  *tp;
+    nxt_work_handler_t exit) {
+    nxt_thread_pool_t *tp;
 
     tp = nxt_zalloc(sizeof(nxt_thread_pool_t));
     if (tp == NULL) {
@@ -27,20 +29,18 @@ nxt_thread_pool_create(nxt_uint_t max_threads, nxt_nsec_t timeout,
     }
 
     tp->max_threads = max_threads;
-    tp->timeout = timeout;
-    tp->engine = engine;
+    tp->timeout     = timeout;
+    tp->engine      = engine;
     tp->task.thread = engine->task.thread;
-    tp->task.log = engine->task.log;
-    tp->init = init;
-    tp->exit = exit;
+    tp->task.log    = engine->task.log;
+    tp->init        = init;
+    tp->exit        = exit;
 
     return tp;
 }
 
-
 nxt_int_t
-nxt_thread_pool_post(nxt_thread_pool_t *tp, nxt_work_t *work)
-{
+nxt_thread_pool_post(nxt_thread_pool_t *tp, nxt_work_t *work) {
     nxt_thread_log_debug("thread pool post");
 
     if (nxt_slow_path(nxt_thread_pool_init(tp) != NXT_OK)) {
@@ -54,13 +54,11 @@ nxt_thread_pool_post(nxt_thread_pool_t *tp, nxt_work_t *work)
     return NXT_OK;
 }
 
-
 static nxt_int_t
-nxt_thread_pool_init(nxt_thread_pool_t *tp)
-{
-    nxt_int_t            ret;
-    nxt_thread_link_t    *link;
-    nxt_thread_handle_t  handle;
+nxt_thread_pool_init(nxt_thread_pool_t *tp) {
+    nxt_int_t           ret;
+    nxt_thread_link_t  *link;
+    nxt_thread_handle_t handle;
 
     if (nxt_fast_path(tp->ready)) {
         return NXT_OK;
@@ -76,17 +74,15 @@ nxt_thread_pool_init(nxt_thread_pool_t *tp)
     ret = NXT_OK;
 
     if (!tp->ready) {
-
         nxt_thread_log_debug("thread pool init");
 
         (void) nxt_atomic_fetch_add(&tp->threads, 1);
 
         if (nxt_fast_path(nxt_sem_init(&tp->sem, 0) == NXT_OK)) {
-
             link = nxt_zalloc(sizeof(nxt_thread_link_t));
 
             if (nxt_fast_path(link != NULL)) {
-                link->start = nxt_thread_pool_start;
+                link->start     = nxt_thread_pool_start;
                 link->work.data = tp;
 
                 if (nxt_thread_create(&handle, link) == NXT_OK) {
@@ -110,44 +106,40 @@ done:
     return ret;
 }
 
-
 static void
-nxt_thread_pool_start(void *ctx)
-{
-    nxt_thread_t       *thr;
-    nxt_thread_pool_t  *tp;
+nxt_thread_pool_start(void *ctx) {
+    nxt_thread_t      *thr;
+    nxt_thread_pool_t *tp;
 
-    tp = ctx;
+    tp  = ctx;
     thr = nxt_thread();
 
-    tp->main = thr->handle;
+    tp->main        = thr->handle;
     tp->task.thread = thr;
 
     nxt_thread_pool_loop(ctx);
 }
 
-
 static void
-nxt_thread_pool_loop(void *ctx)
-{
-    void                *obj, *data;
-    nxt_task_t          *task;
-    nxt_thread_t        *thr;
-    nxt_thread_pool_t   *tp;
-    nxt_work_handler_t  handler;
+nxt_thread_pool_loop(void *ctx) {
+    void              *obj, *data;
+    nxt_task_t        *task;
+    nxt_thread_t      *thr;
+    nxt_thread_pool_t *tp;
+    nxt_work_handler_t handler;
 
-    tp = ctx;
+    tp  = ctx;
     thr = nxt_thread();
 
     if (tp->init != NULL) {
         tp->init();
     }
 
-    for ( ;; ) {
+    for (;;) {
         nxt_thread_pool_wait(tp);
 
-        handler = nxt_locked_work_queue_pop(&tp->work_queue, &task, &obj,
-                                            &data);
+        handler
+            = nxt_locked_work_queue_pop(&tp->work_queue, &task, &obj, &data);
 
         if (nxt_fast_path(handler != NULL)) {
             task->thread = thr;
@@ -161,15 +153,13 @@ nxt_thread_pool_loop(void *ctx)
     }
 }
 
-
 static void
-nxt_thread_pool_wait(nxt_thread_pool_t *tp)
-{
-    nxt_err_t            err;
-    nxt_thread_t         *thr;
-    nxt_atomic_uint_t    waiting, threads;
-    nxt_thread_link_t    *link;
-    nxt_thread_handle_t  handle;
+nxt_thread_pool_wait(nxt_thread_pool_t *tp) {
+    nxt_err_t           err;
+    nxt_thread_t       *thr;
+    nxt_atomic_uint_t   waiting, threads;
+    nxt_thread_link_t  *link;
+    nxt_thread_handle_t handle;
 
     thr = nxt_thread();
 
@@ -177,7 +167,7 @@ nxt_thread_pool_wait(nxt_thread_pool_t *tp)
 
     (void) nxt_atomic_fetch_add(&tp->waiting, 1);
 
-    for ( ;; ) {
+    for (;;) {
         err = nxt_sem_wait(&tp->sem, tp->timeout);
 
         if (err == 0) {
@@ -216,7 +206,7 @@ nxt_thread_pool_wait(nxt_thread_pool_t *tp)
     link = nxt_zalloc(sizeof(nxt_thread_link_t));
 
     if (nxt_fast_path(link != NULL)) {
-        link->start = nxt_thread_pool_loop;
+        link->start     = nxt_thread_pool_loop;
         link->work.data = tp;
 
         if (nxt_thread_create(&handle, link) != NXT_OK) {
@@ -225,11 +215,9 @@ nxt_thread_pool_wait(nxt_thread_pool_t *tp)
     }
 }
 
-
 void
-nxt_thread_pool_destroy(nxt_thread_pool_t *tp)
-{
-    nxt_thread_t  *thr;
+nxt_thread_pool_destroy(nxt_thread_pool_t *tp) {
+    nxt_thread_t *thr;
 
     thr = nxt_thread();
 
@@ -237,7 +225,7 @@ nxt_thread_pool_destroy(nxt_thread_pool_t *tp)
 
     if (!tp->ready) {
         nxt_work_queue_add(&thr->engine->fast_work_queue, tp->exit,
-                           &tp->engine->task, tp, NULL);
+            &tp->engine->task, tp, NULL);
         return;
     }
 
@@ -251,7 +239,6 @@ nxt_thread_pool_destroy(nxt_thread_pool_t *tp)
     }
 }
 
-
 /*
  * A thread handle (pthread_t) is either pointer or integer, so it can be
  * passed as work handler pointer "data" argument.  To convert void pointer
@@ -264,14 +251,13 @@ nxt_thread_pool_destroy(nxt_thread_pool_t *tp)
  */
 
 static void
-nxt_thread_pool_exit(nxt_task_t *task, void *obj, void *data)
-{
-    nxt_thread_t         *thread;
-    nxt_thread_pool_t    *tp;
-    nxt_atomic_uint_t    threads;
-    nxt_thread_handle_t  handle;
+nxt_thread_pool_exit(nxt_task_t *task, void *obj, void *data) {
+    nxt_thread_t       *thread;
+    nxt_thread_pool_t  *tp;
+    nxt_atomic_uint_t   threads;
+    nxt_thread_handle_t handle;
 
-    tp = obj;
+    tp     = obj;
     thread = task->thread;
 
     nxt_debug(task, "thread pool exit");
@@ -287,7 +273,7 @@ nxt_thread_pool_exit(nxt_task_t *task, void *obj, void *data)
 
     if (threads > 1) {
         nxt_work_set(&tp->work, nxt_thread_pool_exit, &tp->task, tp,
-                     (void *) (uintptr_t) thread->handle);
+            (void *) (uintptr_t) thread->handle);
 
         nxt_thread_pool_post(tp, &tp->work);
 
@@ -297,7 +283,7 @@ nxt_thread_pool_exit(nxt_task_t *task, void *obj, void *data)
         nxt_sem_destroy(&tp->sem);
 
         nxt_work_set(&tp->work, tp->exit, &tp->engine->task, tp,
-                     (void *) (uintptr_t) thread->handle);
+            (void *) (uintptr_t) thread->handle);
 
         nxt_event_engine_post(tp->engine, &tp->work);
 

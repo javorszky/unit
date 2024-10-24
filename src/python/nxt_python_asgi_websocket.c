@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) NGINX, Inc.
  */
@@ -16,7 +15,6 @@
 #include <python/nxt_python_asgi.h>
 #include <python/nxt_python_asgi_str.h>
 
-
 enum {
     NXT_WS_INIT,
     NXT_WS_CONNECT,
@@ -25,56 +23,55 @@ enum {
     NXT_WS_CLOSED,
 };
 
-
 typedef struct {
     nxt_queue_link_t            link;
-    nxt_unit_websocket_frame_t  *frame;
+    nxt_unit_websocket_frame_t *frame;
 } nxt_py_asgi_penging_frame_t;
 
-
 typedef struct {
-    PyObject_HEAD
-    nxt_unit_request_info_t  *req;
-    PyObject                 *receive_future;
-    PyObject                 *receive_exc_str;
-    int                      state;
-    nxt_queue_t              pending_frames;
-    uint64_t                 pending_payload_len;
-    uint64_t                 pending_frame_len;
-    int                      pending_fins;
+    PyObject_HEAD nxt_unit_request_info_t *req;
+    PyObject                              *receive_future;
+    PyObject                              *receive_exc_str;
+    int                                    state;
+    nxt_queue_t                            pending_frames;
+    uint64_t                               pending_payload_len;
+    uint64_t                               pending_frame_len;
+    int                                    pending_fins;
 } nxt_py_asgi_websocket_t;
 
+static PyObject *
+nxt_py_asgi_websocket_receive(PyObject *self, PyObject *none);
+static PyObject *
+nxt_py_asgi_websocket_send(PyObject *self, PyObject *dict);
+static PyObject *
+nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws, PyObject *dict);
+static PyObject *
+nxt_py_asgi_websocket_close(nxt_py_asgi_websocket_t *ws, PyObject *dict);
+static PyObject *
+nxt_py_asgi_websocket_send_frame(nxt_py_asgi_websocket_t *ws, PyObject *dict);
+static void
+nxt_py_asgi_websocket_receive_done(nxt_py_asgi_websocket_t *ws, PyObject *msg);
+static void
+nxt_py_asgi_websocket_receive_fail(nxt_py_asgi_websocket_t *ws, PyObject *exc);
+static void
+nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *f);
+static PyObject *
+nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
+    nxt_unit_websocket_frame_t                        *frame);
+static uint64_t
+nxt_py_asgi_websocket_pending_len(nxt_py_asgi_websocket_t *ws);
+static nxt_unit_websocket_frame_t *
+nxt_py_asgi_websocket_pop_frame(nxt_py_asgi_websocket_t *ws);
+static PyObject *
+nxt_py_asgi_websocket_disconnect_msg(nxt_py_asgi_websocket_t *ws);
+static PyObject *
+nxt_py_asgi_websocket_done(PyObject *self, PyObject *future);
 
-static PyObject *nxt_py_asgi_websocket_receive(PyObject *self, PyObject *none);
-static PyObject *nxt_py_asgi_websocket_send(PyObject *self, PyObject *dict);
-static PyObject *nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws,
-    PyObject *dict);
-static PyObject *nxt_py_asgi_websocket_close(nxt_py_asgi_websocket_t *ws,
-    PyObject *dict);
-static PyObject *nxt_py_asgi_websocket_send_frame(nxt_py_asgi_websocket_t *ws,
-    PyObject *dict);
-static void nxt_py_asgi_websocket_receive_done(nxt_py_asgi_websocket_t *ws,
-    PyObject *msg);
-static void nxt_py_asgi_websocket_receive_fail(nxt_py_asgi_websocket_t *ws,
-    PyObject *exc);
-static void nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *f);
-static PyObject *nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
-    nxt_unit_websocket_frame_t *frame);
-static uint64_t nxt_py_asgi_websocket_pending_len(
-    nxt_py_asgi_websocket_t *ws);
-static nxt_unit_websocket_frame_t *nxt_py_asgi_websocket_pop_frame(
-    nxt_py_asgi_websocket_t *ws);
-static PyObject *nxt_py_asgi_websocket_disconnect_msg(
-    nxt_py_asgi_websocket_t *ws);
-static PyObject *nxt_py_asgi_websocket_done(PyObject *self, PyObject *future);
 
-
-static PyMethodDef nxt_py_asgi_websocket_methods[] = {
-    { "receive",   nxt_py_asgi_websocket_receive, METH_NOARGS, 0 },
-    { "send",      nxt_py_asgi_websocket_send,    METH_O,      0 },
-    { "_done",     nxt_py_asgi_websocket_done,    METH_O,      0 },
-    { NULL, NULL, 0, 0 }
-};
+static PyMethodDef nxt_py_asgi_websocket_methods[]
+    = {{"receive", nxt_py_asgi_websocket_receive, METH_NOARGS, 0},
+        {"send", nxt_py_asgi_websocket_send, METH_O, 0},
+        {"_done", nxt_py_asgi_websocket_done, METH_O, 0}, {NULL, NULL, 0, 0}};
 
 static PyAsyncMethods nxt_py_asgi_async_methods = {
     .am_await = nxt_py_asgi_await,
@@ -83,7 +80,8 @@ static PyAsyncMethods nxt_py_asgi_async_methods = {
 static PyTypeObject nxt_py_asgi_websocket_type = {
     PyVarObject_HEAD_INIT(NULL, 0)
 
-    .tp_name      = "unit._asgi_websocket",
+        .tp_name
+    = "unit._asgi_websocket",
     .tp_basicsize = sizeof(nxt_py_asgi_websocket_t),
     .tp_dealloc   = nxt_py_asgi_dealloc,
     .tp_as_async  = &nxt_py_asgi_async_methods,
@@ -94,51 +92,45 @@ static PyTypeObject nxt_py_asgi_websocket_type = {
     .tp_methods   = nxt_py_asgi_websocket_methods,
 };
 
-static uint64_t  nxt_py_asgi_ws_max_frame_size = 1024 * 1024;
-static uint64_t  nxt_py_asgi_ws_max_buffer_size = 10 * 1024 * 1024;
-
+static uint64_t nxt_py_asgi_ws_max_frame_size  = 1024 * 1024;
+static uint64_t nxt_py_asgi_ws_max_buffer_size = 10 * 1024 * 1024;
 
 int
-nxt_py_asgi_websocket_init(void)
-{
+nxt_py_asgi_websocket_init(void) {
     if (nxt_slow_path(PyType_Ready(&nxt_py_asgi_websocket_type) != 0)) {
         nxt_unit_alert(NULL,
-              "Python failed to initialize the \"asgi_websocket\" type object");
+            "Python failed to initialize the \"asgi_websocket\" type object");
         return NXT_UNIT_ERROR;
     }
 
     return NXT_UNIT_OK;
 }
 
-
 PyObject *
-nxt_py_asgi_websocket_create(nxt_unit_request_info_t *req)
-{
-    nxt_py_asgi_websocket_t  *ws;
+nxt_py_asgi_websocket_create(nxt_unit_request_info_t *req) {
+    nxt_py_asgi_websocket_t *ws;
 
     ws = PyObject_New(nxt_py_asgi_websocket_t, &nxt_py_asgi_websocket_type);
 
     if (nxt_fast_path(ws != NULL)) {
-        ws->req = req;
-        ws->receive_future = NULL;
+        ws->req             = req;
+        ws->receive_future  = NULL;
         ws->receive_exc_str = NULL;
-        ws->state = NXT_WS_INIT;
+        ws->state           = NXT_WS_INIT;
         nxt_queue_init(&ws->pending_frames);
         ws->pending_payload_len = 0;
-        ws->pending_frame_len = 0;
-        ws->pending_fins = 0;
+        ws->pending_frame_len   = 0;
+        ws->pending_fins        = 0;
     }
 
     return (PyObject *) ws;
 }
 
-
 static PyObject *
-nxt_py_asgi_websocket_receive(PyObject *self, PyObject *none)
-{
-    PyObject                 *future, *msg;
-    nxt_py_asgi_ctx_data_t   *ctx_data;
-    nxt_py_asgi_websocket_t  *ws;
+nxt_py_asgi_websocket_receive(PyObject *self, PyObject *none) {
+    PyObject                *future, *msg;
+    nxt_py_asgi_ctx_data_t  *ctx_data;
+    nxt_py_asgi_websocket_t *ws;
 
     ws = (nxt_py_asgi_websocket_t *) self;
 
@@ -154,11 +146,9 @@ nxt_py_asgi_websocket_receive(PyObject *self, PyObject *none)
     }
 
     if (nxt_slow_path(ws->state == NXT_WS_CLOSED)) {
-        nxt_unit_req_error(ws->req,
-                           "receive() called for closed WebSocket");
+        nxt_unit_req_error(ws->req, "receive() called for closed WebSocket");
 
-        return PyErr_Format(PyExc_RuntimeError,
-                            "WebSocket already closed");
+        return PyErr_Format(PyExc_RuntimeError, "WebSocket already closed");
     }
 
     ctx_data = ws->req->ctx->data;
@@ -169,7 +159,7 @@ nxt_py_asgi_websocket_receive(PyObject *self, PyObject *none)
         nxt_python_print_exception();
 
         return PyErr_Format(PyExc_RuntimeError,
-                            "failed to create Future object");
+            "failed to create Future object");
     }
 
     if (nxt_slow_path(ws->state == NXT_WS_INIT)) {
@@ -198,74 +188,68 @@ nxt_py_asgi_websocket_receive(PyObject *self, PyObject *none)
     return future;
 }
 
-
 static PyObject *
-nxt_py_asgi_websocket_send(PyObject *self, PyObject *dict)
-{
-    PyObject                 *type;
-    const char               *type_str;
+nxt_py_asgi_websocket_send(PyObject *self, PyObject *dict) {
+    PyObject                *type;
+    const char              *type_str;
     Py_ssize_t               type_len;
-    nxt_py_asgi_websocket_t  *ws;
+    nxt_py_asgi_websocket_t *ws;
 
-    static const nxt_str_t  websocket_accept = nxt_string("websocket.accept");
-    static const nxt_str_t  websocket_close = nxt_string("websocket.close");
-    static const nxt_str_t  websocket_send = nxt_string("websocket.send");
+    static const nxt_str_t websocket_accept = nxt_string("websocket.accept");
+    static const nxt_str_t websocket_close  = nxt_string("websocket.close");
+    static const nxt_str_t websocket_send   = nxt_string("websocket.send");
 
     ws = (nxt_py_asgi_websocket_t *) self;
 
     type = PyDict_GetItem(dict, nxt_py_type_str);
     if (nxt_slow_path(type == NULL || !PyUnicode_Check(type))) {
         nxt_unit_req_error(ws->req, "asgi_websocket_send: "
-                           "'type' is not a unicode string");
-        return PyErr_Format(PyExc_TypeError,
-                            "'type' is not a unicode string");
+                                    "'type' is not a unicode string");
+        return PyErr_Format(PyExc_TypeError, "'type' is not a unicode string");
     }
 
     type_str = PyUnicode_AsUTF8AndSize(type, &type_len);
 
     nxt_unit_req_debug(ws->req, "asgi_websocket_send type is '%.*s'",
-                       (int) type_len, type_str);
+        (int) type_len, type_str);
 
     if (type_len == (Py_ssize_t) websocket_accept.length
-        && memcmp(type_str, websocket_accept.start, type_len) == 0)
-    {
+        && memcmp(type_str, websocket_accept.start, type_len) == 0) {
         return nxt_py_asgi_websocket_accept(ws, dict);
     }
 
     if (type_len == (Py_ssize_t) websocket_close.length
-        && memcmp(type_str, websocket_close.start, type_len) == 0)
-    {
+        && memcmp(type_str, websocket_close.start, type_len) == 0) {
         return nxt_py_asgi_websocket_close(ws, dict);
     }
 
     if (type_len == (Py_ssize_t) websocket_send.length
-        && memcmp(type_str, websocket_send.start, type_len) == 0)
-    {
+        && memcmp(type_str, websocket_send.start, type_len) == 0) {
         return nxt_py_asgi_websocket_send_frame(ws, dict);
     }
 
-    nxt_unit_req_error(ws->req, "asgi_websocket_send: "
-                       "unexpected 'type': '%.*s'", (int) type_len, type_str);
+    nxt_unit_req_error(ws->req,
+        "asgi_websocket_send: "
+        "unexpected 'type': '%.*s'",
+        (int) type_len, type_str);
     return PyErr_Format(PyExc_AssertionError, "unexpected 'type': '%U'", type);
 }
 
-
 static PyObject *
-nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws, PyObject *dict)
-{
-    int                          rc;
-    char                         *subprotocol_str;
-    PyObject                     *res, *headers, *subprotocol;
-    Py_ssize_t                   subprotocol_len;
-    nxt_py_asgi_calc_size_ctx_t  calc_size_ctx;
-    nxt_py_asgi_add_field_ctx_t  add_field_ctx;
+nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws, PyObject *dict) {
+    int                         rc;
+    char                       *subprotocol_str;
+    PyObject                   *res, *headers, *subprotocol;
+    Py_ssize_t                  subprotocol_len;
+    nxt_py_asgi_calc_size_ctx_t calc_size_ctx;
+    nxt_py_asgi_add_field_ctx_t add_field_ctx;
 
-    static const nxt_str_t  ws_protocol = nxt_string("sec-websocket-protocol");
+    static const nxt_str_t ws_protocol = nxt_string("sec-websocket-protocol");
 
-    switch(ws->state) {
+    switch (ws->state) {
     case NXT_WS_INIT:
         return PyErr_Format(PyExc_RuntimeError,
-                            "WebSocket connect not received");
+            "WebSocket connect not received");
     case NXT_WS_CONNECT:
         break;
 
@@ -287,13 +271,13 @@ nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws, PyObject *dict)
         return PyErr_Format(PyExc_RuntimeError, "response already sent");
     }
 
-    calc_size_ctx.fields_size = 0;
+    calc_size_ctx.fields_size  = 0;
     calc_size_ctx.fields_count = 0;
 
     headers = PyDict_GetItem(dict, nxt_py_headers_str);
     if (headers != NULL) {
         res = nxt_py_asgi_enum_headers(headers, nxt_py_asgi_calc_size,
-                                       &calc_size_ctx);
+            &calc_size_ctx);
         if (nxt_slow_path(res == NULL)) {
             return NULL;
         }
@@ -312,20 +296,19 @@ nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws, PyObject *dict)
         subprotocol_len = 0;
     }
 
-    rc = nxt_unit_response_init(ws->req, 101,
-                                calc_size_ctx.fields_count,
-                                calc_size_ctx.fields_size);
+    rc = nxt_unit_response_init(ws->req, 101, calc_size_ctx.fields_count,
+        calc_size_ctx.fields_size);
     if (nxt_slow_path(rc != NXT_UNIT_OK)) {
         return PyErr_Format(PyExc_RuntimeError,
-                            "failed to allocate response object");
+            "failed to allocate response object");
     }
 
-    add_field_ctx.req = ws->req;
+    add_field_ctx.req            = ws->req;
     add_field_ctx.content_length = -1;
 
     if (headers != NULL) {
         res = nxt_py_asgi_enum_headers(headers, nxt_py_asgi_add_field,
-                                       &add_field_ctx);
+            &add_field_ctx);
         if (nxt_slow_path(res == NULL)) {
             return NULL;
         }
@@ -333,12 +316,10 @@ nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws, PyObject *dict)
 
     if (subprotocol_len > 0) {
         rc = nxt_unit_response_add_field(ws->req,
-                                         (const char *) ws_protocol.start,
-                                         ws_protocol.length,
-                                         subprotocol_str, subprotocol_len);
+            (const char *) ws_protocol.start, ws_protocol.length,
+            subprotocol_str, subprotocol_len);
         if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-            return PyErr_Format(PyExc_RuntimeError,
-                                "failed to add header");
+            return PyErr_Format(PyExc_RuntimeError, "failed to add header");
         }
     }
 
@@ -354,17 +335,15 @@ nxt_py_asgi_websocket_accept(nxt_py_asgi_websocket_t *ws, PyObject *dict)
     return (PyObject *) ws;
 }
 
-
 static PyObject *
-nxt_py_asgi_websocket_close(nxt_py_asgi_websocket_t *ws, PyObject *dict)
-{
+nxt_py_asgi_websocket_close(nxt_py_asgi_websocket_t *ws, PyObject *dict) {
     int       rc;
     uint16_t  status_code;
-    PyObject  *code;
+    PyObject *code;
 
     if (nxt_slow_path(ws->state == NXT_WS_INIT)) {
         return PyErr_Format(PyExc_RuntimeError,
-                            "WebSocket connect not received");
+            "WebSocket connect not received");
     }
 
     if (nxt_slow_path(ws->state == NXT_WS_DISCONNECTED)) {
@@ -384,24 +363,23 @@ nxt_py_asgi_websocket_close(nxt_py_asgi_websocket_t *ws, PyObject *dict)
         status_code = (code != NULL) ? htons(PyLong_AsLong(code))
                                      : htons(NXT_WEBSOCKET_CR_NORMAL);
 
-        rc = nxt_unit_websocket_send(ws->req, NXT_WEBSOCKET_OP_CLOSE,
-                                     1, &status_code, 2);
+        rc = nxt_unit_websocket_send(ws->req, NXT_WEBSOCKET_OP_CLOSE, 1,
+            &status_code, 2);
         if (nxt_slow_path(rc != NXT_UNIT_OK)) {
             return PyErr_Format(PyExc_RuntimeError,
-                                "failed to send close frame");
+                "failed to send close frame");
         }
 
     } else {
         rc = nxt_unit_response_init(ws->req, 403, 0, 0);
         if (nxt_slow_path(rc != NXT_UNIT_OK)) {
             return PyErr_Format(PyExc_RuntimeError,
-                                "failed to allocate response object");
+                "failed to allocate response object");
         }
 
         rc = nxt_unit_response_send(ws->req);
         if (nxt_slow_path(rc != NXT_UNIT_OK)) {
-            return PyErr_Format(PyExc_RuntimeError,
-                                "failed to send response");
+            return PyErr_Format(PyExc_RuntimeError, "failed to send response");
         }
     }
 
@@ -412,24 +390,21 @@ nxt_py_asgi_websocket_close(nxt_py_asgi_websocket_t *ws, PyObject *dict)
     return (PyObject *) ws;
 }
 
-
 static PyObject *
-nxt_py_asgi_websocket_send_frame(nxt_py_asgi_websocket_t *ws, PyObject *dict)
-{
+nxt_py_asgi_websocket_send_frame(nxt_py_asgi_websocket_t *ws, PyObject *dict) {
     int         rc;
     uint8_t     opcode;
-    PyObject    *bytes, *text;
-    const void  *buf;
+    PyObject   *bytes, *text;
+    const void *buf;
     Py_ssize_t  buf_size;
 
     if (nxt_slow_path(ws->state == NXT_WS_INIT)) {
         return PyErr_Format(PyExc_RuntimeError,
-                            "WebSocket connect not received");
+            "WebSocket connect not received");
     }
 
     if (nxt_slow_path(ws->state == NXT_WS_CONNECT)) {
-        return PyErr_Format(PyExc_RuntimeError,
-                            "WebSocket not accepted yet");
+        return PyErr_Format(PyExc_RuntimeError, "WebSocket not accepted yet");
     }
 
     if (nxt_slow_path(ws->state == NXT_WS_DISCONNECTED)) {
@@ -446,8 +421,7 @@ nxt_py_asgi_websocket_send_frame(nxt_py_asgi_websocket_t *ws, PyObject *dict)
     }
 
     if (nxt_slow_path(bytes != NULL && !PyBytes_Check(bytes))) {
-        return PyErr_Format(PyExc_TypeError,
-                            "'bytes' is not a byte string");
+        return PyErr_Format(PyExc_TypeError, "'bytes' is not a byte string");
     }
 
     text = PyDict_GetItem(dict, nxt_py_text_str);
@@ -456,22 +430,21 @@ nxt_py_asgi_websocket_send_frame(nxt_py_asgi_websocket_t *ws, PyObject *dict)
     }
 
     if (nxt_slow_path(text != NULL && !PyUnicode_Check(text))) {
-        return PyErr_Format(PyExc_TypeError,
-                            "'text' is not a unicode string");
+        return PyErr_Format(PyExc_TypeError, "'text' is not a unicode string");
     }
 
     if (nxt_slow_path(((bytes != NULL) ^ (text != NULL)) == 0)) {
         return PyErr_Format(PyExc_ValueError,
-                       "Exactly one of 'bytes' or 'text' must be non-None");
+            "Exactly one of 'bytes' or 'text' must be non-None");
     }
 
     if (bytes != NULL) {
-        buf = PyBytes_AS_STRING(bytes);
+        buf      = PyBytes_AS_STRING(bytes);
         buf_size = PyBytes_GET_SIZE(bytes);
-        opcode = NXT_WEBSOCKET_OP_BINARY;
+        opcode   = NXT_WEBSOCKET_OP_BINARY;
 
     } else {
-        buf = PyUnicode_AsUTF8AndSize(text, &buf_size);
+        buf    = PyUnicode_AsUTF8AndSize(text, &buf_size);
         opcode = NXT_WEBSOCKET_OP_TEXT;
     }
 
@@ -484,15 +457,13 @@ nxt_py_asgi_websocket_send_frame(nxt_py_asgi_websocket_t *ws, PyObject *dict)
     return (PyObject *) ws;
 }
 
-
 void
-nxt_py_asgi_websocket_handler(nxt_unit_websocket_frame_t *frame)
-{
+nxt_py_asgi_websocket_handler(nxt_unit_websocket_frame_t *frame) {
     uint8_t                  opcode;
     uint16_t                 status_code;
     uint64_t                 rest;
-    PyObject                 *msg, *exc;
-    nxt_py_asgi_websocket_t  *ws;
+    PyObject                *msg, *exc;
+    nxt_py_asgi_websocket_t *ws;
 
     ws = frame->req->data;
 
@@ -502,13 +473,11 @@ nxt_py_asgi_websocket_handler(nxt_unit_websocket_frame_t *frame)
     if (nxt_slow_path(opcode != NXT_WEBSOCKET_OP_CONT
                       && opcode != NXT_WEBSOCKET_OP_TEXT
                       && opcode != NXT_WEBSOCKET_OP_BINARY
-                      && opcode != NXT_WEBSOCKET_OP_CLOSE))
-    {
+                      && opcode != NXT_WEBSOCKET_OP_CLOSE)) {
         nxt_unit_websocket_done(frame);
 
         nxt_unit_req_debug(ws->req,
-                          "asgi_websocket_handler: ignore frame with opcode %d",
-                           opcode);
+            "asgi_websocket_handler: ignore frame with opcode %d", opcode);
 
         return;
     }
@@ -543,15 +512,15 @@ nxt_py_asgi_websocket_handler(nxt_unit_websocket_frame_t *frame)
 
     if (!nxt_queue_is_empty(&ws->pending_frames)) {
         if (nxt_slow_path(opcode == NXT_WEBSOCKET_OP_TEXT
-                          || opcode == NXT_WEBSOCKET_OP_BINARY))
-        {
+                          || opcode == NXT_WEBSOCKET_OP_BINARY)) {
             nxt_unit_req_alert(ws->req,
-                         "Invalid state: pending frames with active receiver. "
-                         "CONT frame expected. (%d)", opcode);
+                "Invalid state: pending frames with active receiver. "
+                "CONT frame expected. (%d)",
+                opcode);
 
             PyErr_SetString(PyExc_AssertionError,
-                         "Invalid state: pending frames with active receiver. "
-                         "CONT frame expected.");
+                "Invalid state: pending frames with active receiver. "
+                "CONT frame expected.");
 
             nxt_unit_websocket_done(frame);
 
@@ -579,9 +548,8 @@ bad_state:
         return;
     }
 
-    exc = PyObject_CallFunctionObjArgs(PyExc_RuntimeError,
-                                       nxt_py_bad_state_str,
-                                       NULL);
+    exc = PyObject_CallFunctionObjArgs(PyExc_RuntimeError, nxt_py_bad_state_str,
+        NULL);
     if (nxt_slow_path(exc == NULL)) {
         nxt_unit_req_alert(ws->req, "RuntimeError create failed");
         nxt_python_print_exception();
@@ -596,8 +564,8 @@ too_big:
 
     status_code = htons(NXT_WEBSOCKET_CR_MESSAGE_TOO_BIG);
 
-    (void) nxt_unit_websocket_send(ws->req, NXT_WEBSOCKET_OP_CLOSE,
-                                   1, &status_code, 2);
+    (void) nxt_unit_websocket_send(ws->req, NXT_WEBSOCKET_OP_CLOSE, 1,
+        &status_code, 2);
 
     ws->state = NXT_WS_CLOSED;
 
@@ -608,8 +576,7 @@ too_big:
     }
 
     exc = PyObject_CallFunctionObjArgs(PyExc_RuntimeError,
-                                       nxt_py_message_too_big_str,
-                                       NULL);
+        nxt_py_message_too_big_str, NULL);
     if (nxt_slow_path(exc == NULL)) {
         nxt_unit_req_alert(ws->req, "RuntimeError create failed");
         nxt_python_print_exception();
@@ -623,13 +590,11 @@ raise:
     nxt_py_asgi_websocket_receive_fail(ws, exc);
 }
 
-
 static void
-nxt_py_asgi_websocket_receive_done(nxt_py_asgi_websocket_t *ws, PyObject *msg)
-{
-    PyObject  *future, *res;
+nxt_py_asgi_websocket_receive_done(nxt_py_asgi_websocket_t *ws, PyObject *msg) {
+    PyObject *future, *res;
 
-    future = ws->receive_future;
+    future             = ws->receive_future;
     ws->receive_future = NULL;
 
     res = PyObject_CallMethodObjArgs(future, nxt_py_set_result_str, msg, NULL);
@@ -644,17 +609,15 @@ nxt_py_asgi_websocket_receive_done(nxt_py_asgi_websocket_t *ws, PyObject *msg)
     Py_DECREF(msg);
 }
 
-
 static void
-nxt_py_asgi_websocket_receive_fail(nxt_py_asgi_websocket_t *ws, PyObject *exc)
-{
-    PyObject  *future, *res;
+nxt_py_asgi_websocket_receive_fail(nxt_py_asgi_websocket_t *ws, PyObject *exc) {
+    PyObject *future, *res;
 
-    future = ws->receive_future;
+    future             = ws->receive_future;
     ws->receive_future = NULL;
 
     res = PyObject_CallMethodObjArgs(future, nxt_py_set_exception_str, exc,
-                                     NULL);
+        NULL);
     if (nxt_slow_path(res == NULL)) {
         nxt_unit_req_alert(ws->req, "'set_exception' call failed");
         nxt_python_print_exception();
@@ -666,18 +629,16 @@ nxt_py_asgi_websocket_receive_fail(nxt_py_asgi_websocket_t *ws, PyObject *exc)
     Py_DECREF(exc);
 }
 
-
 static void
-nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *frame)
-{
+nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *frame) {
     int                          rc;
-    nxt_py_asgi_websocket_t      *ws;
-    nxt_py_asgi_penging_frame_t  *p;
+    nxt_py_asgi_websocket_t     *ws;
+    nxt_py_asgi_penging_frame_t *p;
 
-    nxt_unit_req_debug(frame->req, "asgi_websocket_suspend_frame: "
-                       "%d, %"PRIu64", %d",
-                       frame->header->opcode, frame->payload_len,
-                       frame->header->fin);
+    nxt_unit_req_debug(frame->req,
+        "asgi_websocket_suspend_frame: "
+        "%d, %" PRIu64 ", %d",
+        frame->header->opcode, frame->payload_len, frame->header->fin);
 
     ws = frame->req->data;
 
@@ -688,7 +649,7 @@ nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *frame)
         nxt_unit_websocket_done(frame);
 
         PyErr_SetString(PyExc_RuntimeError,
-                        "Failed to retain frame for suspension.");
+            "Failed to retain frame for suspension.");
 
         return;
     }
@@ -696,12 +657,12 @@ nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *frame)
     p = nxt_unit_malloc(frame->req->ctx, sizeof(nxt_py_asgi_penging_frame_t));
     if (nxt_slow_path(p == NULL)) {
         nxt_unit_req_alert(ws->req,
-                           "Failed to allocate buffer to suspend frame.");
+            "Failed to allocate buffer to suspend frame.");
 
         nxt_unit_websocket_done(frame);
 
         PyErr_SetString(PyExc_RuntimeError,
-                        "Failed to allocate buffer to suspend frame.");
+            "Failed to allocate buffer to suspend frame.");
 
         return;
     }
@@ -710,7 +671,7 @@ nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *frame)
     nxt_queue_insert_tail(&ws->pending_frames, &p->link);
 
     ws->pending_payload_len += frame->payload_len;
-    ws->pending_fins += frame->header->fin;
+    ws->pending_fins        += frame->header->fin;
 
     if (frame->header->fin) {
         ws->pending_frame_len = 0;
@@ -725,33 +686,29 @@ nxt_py_asgi_websocket_suspend_frame(nxt_unit_websocket_frame_t *frame)
     }
 }
 
-
 static PyObject *
 nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
-    nxt_unit_websocket_frame_t *frame)
-{
+    nxt_unit_websocket_frame_t                        *frame) {
     int                         fin;
-    char                        *buf;
+    char                       *buf;
     uint8_t                     code_buf[2], opcode;
     uint16_t                    code;
-    PyObject                    *msg, *data, *type, *data_key;
+    PyObject                   *msg, *data, *type, *data_key;
     uint64_t                    payload_len;
-    nxt_unit_websocket_frame_t  *fin_frame;
+    nxt_unit_websocket_frame_t *fin_frame;
 
     nxt_unit_req_debug(ws->req, "asgi_websocket_pop_msg");
 
     fin_frame = NULL;
 
     if (nxt_queue_is_empty(&ws->pending_frames)
-        || (frame != NULL
-            && frame->header->opcode == NXT_WEBSOCKET_OP_CLOSE))
-    {
+        || (frame != NULL && frame->header->opcode == NXT_WEBSOCKET_OP_CLOSE)) {
         payload_len = frame->payload_len;
 
     } else {
         if (frame != NULL) {
             payload_len = ws->pending_payload_len + frame->payload_len;
-            fin_frame = frame;
+            fin_frame   = frame;
 
         } else {
             payload_len = nxt_py_asgi_websocket_pending_len(ws);
@@ -764,12 +721,12 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
 
     if (nxt_slow_path(opcode == NXT_WEBSOCKET_OP_CONT)) {
         nxt_unit_req_alert(ws->req,
-                           "Invalid state: attempt to process CONT frame.");
+            "Invalid state: attempt to process CONT frame.");
 
         nxt_unit_websocket_done(frame);
 
         return PyErr_Format(PyExc_AssertionError,
-                            "Invalid state: attempt to process CONT frame.");
+            "Invalid state: attempt to process CONT frame.");
     }
 
     type = nxt_py_websocket_receive_str;
@@ -779,17 +736,17 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
         buf = nxt_unit_malloc(frame->req->ctx, payload_len);
         if (nxt_slow_path(buf == NULL)) {
             nxt_unit_req_alert(ws->req,
-                               "Failed to allocate buffer for payload (%d).",
-                               (int) payload_len);
+                "Failed to allocate buffer for payload (%d).",
+                (int) payload_len);
 
             nxt_unit_websocket_done(frame);
 
             return PyErr_Format(PyExc_RuntimeError,
-                                "Failed to allocate buffer for payload (%d).",
-                                (int) payload_len);
+                "Failed to allocate buffer for payload (%d).",
+                (int) payload_len);
         }
 
-        data = NULL;
+        data     = NULL;
         data_key = nxt_py_text_str;
 
         break;
@@ -798,17 +755,16 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
         data = PyBytes_FromStringAndSize(NULL, payload_len);
         if (nxt_slow_path(data == NULL)) {
             nxt_unit_req_alert(ws->req,
-                               "Failed to create Bytes for payload (%d).",
-                               (int) payload_len);
+                "Failed to create Bytes for payload (%d).", (int) payload_len);
             nxt_python_print_exception();
 
             nxt_unit_websocket_done(frame);
 
             return PyErr_Format(PyExc_RuntimeError,
-                                "Failed to create Bytes for payload.");
+                "Failed to create Bytes for payload.");
         }
 
-        buf = (char *) PyBytes_AS_STRING(data);
+        buf      = (char *) PyBytes_AS_STRING(data);
         data_key = nxt_py_bytes_str;
 
         break;
@@ -826,18 +782,16 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
 
         data = PyLong_FromLong(code);
         if (nxt_slow_path(data == NULL)) {
-            nxt_unit_req_alert(ws->req,
-                               "Failed to create Long from code %d.",
-                               (int) code);
+            nxt_unit_req_alert(ws->req, "Failed to create Long from code %d.",
+                (int) code);
             nxt_python_print_exception();
 
             return PyErr_Format(PyExc_RuntimeError,
-                                "Failed to create Long from code %d.",
-                                (int) code);
+                "Failed to create Long from code %d.", (int) code);
         }
 
-        buf = NULL;
-        type = nxt_py_websocket_disconnect_str;
+        buf      = NULL;
+        type     = nxt_py_websocket_disconnect_str;
         data_key = nxt_py_code_str;
 
         break;
@@ -848,11 +802,11 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
         nxt_unit_websocket_done(frame);
 
         return PyErr_Format(PyExc_AssertionError, "Unexpected opcode %d",
-                            opcode);
+            opcode);
     }
 
     if (buf != NULL) {
-        fin = frame->header->fin;
+        fin  = frame->header->fin;
         buf += nxt_unit_websocket_read(frame, buf, frame->payload_len);
 
         nxt_unit_websocket_done(frame);
@@ -860,7 +814,7 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
         if (!fin) {
             while (!nxt_queue_is_empty(&ws->pending_frames)) {
                 frame = nxt_py_asgi_websocket_pop_frame(ws);
-                fin = frame->header->fin;
+                fin   = frame->header->fin;
 
                 buf += nxt_unit_websocket_read(frame, buf, frame->payload_len);
 
@@ -873,7 +827,7 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
 
             if (fin_frame != NULL) {
                 buf += nxt_unit_websocket_read(fin_frame, buf,
-                                               fin_frame->payload_len);
+                    fin_frame->payload_len);
                 nxt_unit_websocket_done(fin_frame);
             }
         }
@@ -887,12 +841,12 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
 
             if (nxt_slow_path(data == NULL)) {
                 nxt_unit_req_alert(ws->req,
-                                   "Failed to create Unicode for payload (%d).",
-                                   (int) payload_len);
+                    "Failed to create Unicode for payload (%d).",
+                    (int) payload_len);
                 nxt_python_print_exception();
 
                 return PyErr_Format(PyExc_RuntimeError,
-                                    "Failed to create Unicode.");
+                    "Failed to create Unicode.");
             }
         }
     }
@@ -910,7 +864,7 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
         Py_DECREF(data);
 
         return PyErr_Format(PyExc_RuntimeError,
-                            "Python failed to set 'msg.data' item");
+            "Python failed to set 'msg.data' item");
     }
 
     Py_DECREF(data);
@@ -918,12 +872,10 @@ nxt_py_asgi_websocket_pop_msg(nxt_py_asgi_websocket_t *ws,
     return msg;
 }
 
-
 static uint64_t
-nxt_py_asgi_websocket_pending_len(nxt_py_asgi_websocket_t *ws)
-{
+nxt_py_asgi_websocket_pending_len(nxt_py_asgi_websocket_t *ws) {
     uint64_t                     res;
-    nxt_py_asgi_penging_frame_t  *p;
+    nxt_py_asgi_penging_frame_t *p;
 
     res = 0;
 
@@ -932,49 +884,46 @@ nxt_py_asgi_websocket_pending_len(nxt_py_asgi_websocket_t *ws)
 
         if (p->frame->header->fin) {
             nxt_unit_req_debug(ws->req, "asgi_websocket_pending_len: %d",
-                               (int) res);
+                (int) res);
             return res;
         }
-    } nxt_queue_loop;
+    }
+    nxt_queue_loop;
 
     nxt_unit_req_debug(ws->req, "asgi_websocket_pending_len: %d (all)",
-                       (int) res);
+        (int) res);
     return res;
 }
 
-
 static nxt_unit_websocket_frame_t *
-nxt_py_asgi_websocket_pop_frame(nxt_py_asgi_websocket_t *ws)
-{
-    nxt_queue_link_t             *lnk;
-    nxt_unit_websocket_frame_t   *frame;
-    nxt_py_asgi_penging_frame_t  *p;
+nxt_py_asgi_websocket_pop_frame(nxt_py_asgi_websocket_t *ws) {
+    nxt_queue_link_t            *lnk;
+    nxt_unit_websocket_frame_t  *frame;
+    nxt_py_asgi_penging_frame_t *p;
 
     lnk = nxt_queue_first(&ws->pending_frames);
     nxt_queue_remove(lnk);
 
     p = nxt_queue_link_data(lnk, nxt_py_asgi_penging_frame_t, link);
 
-    frame = p->frame;
+    frame                    = p->frame;
     ws->pending_payload_len -= frame->payload_len;
-    ws->pending_fins -= frame->header->fin;
+    ws->pending_fins        -= frame->header->fin;
 
     nxt_unit_free(frame->req->ctx, p);
 
-    nxt_unit_req_debug(frame->req, "asgi_websocket_pop_frame: "
-                       "%d, %"PRIu64", %d",
-                       frame->header->opcode, frame->payload_len,
-                       frame->header->fin);
+    nxt_unit_req_debug(frame->req,
+        "asgi_websocket_pop_frame: "
+        "%d, %" PRIu64 ", %d",
+        frame->header->opcode, frame->payload_len, frame->header->fin);
 
     return frame;
 }
 
-
 void
-nxt_py_asgi_websocket_close_handler(nxt_unit_request_info_t *req)
-{
-    PyObject                 *msg, *exc;
-    nxt_py_asgi_websocket_t  *ws;
+nxt_py_asgi_websocket_close_handler(nxt_unit_request_info_t *req) {
+    PyObject                *msg, *exc;
+    nxt_py_asgi_websocket_t *ws;
 
     ws = req->data;
 
@@ -1002,11 +951,9 @@ nxt_py_asgi_websocket_close_handler(nxt_unit_request_info_t *req)
     }
 }
 
-
 static PyObject *
-nxt_py_asgi_websocket_disconnect_msg(nxt_py_asgi_websocket_t *ws)
-{
-    PyObject  *msg, *code;
+nxt_py_asgi_websocket_disconnect_msg(nxt_py_asgi_websocket_t *ws) {
+    PyObject *msg, *code;
 
     msg = nxt_py_asgi_new_msg(ws->req, nxt_py_websocket_disconnect_str);
     if (nxt_slow_path(msg == NULL)) {
@@ -1030,7 +977,7 @@ nxt_py_asgi_websocket_disconnect_msg(nxt_py_asgi_websocket_t *ws)
         Py_DECREF(code);
 
         return PyErr_Format(PyExc_RuntimeError,
-                            "Python failed to set 'msg.code' item");
+            "Python failed to set 'msg.code' item");
     }
 
     Py_DECREF(code);
@@ -1038,14 +985,12 @@ nxt_py_asgi_websocket_disconnect_msg(nxt_py_asgi_websocket_t *ws)
     return msg;
 }
 
-
 static PyObject *
-nxt_py_asgi_websocket_done(PyObject *self, PyObject *future)
-{
+nxt_py_asgi_websocket_done(PyObject *self, PyObject *future) {
     int                      rc;
     uint16_t                 status_code;
-    PyObject                 *res;
-    nxt_py_asgi_websocket_t  *ws;
+    PyObject                *res;
+    nxt_py_asgi_websocket_t *ws;
 
     ws = (nxt_py_asgi_websocket_t *) self;
 
@@ -1057,8 +1002,7 @@ nxt_py_asgi_websocket_done(PyObject *self, PyObject *future)
      */
     res = PyObject_CallMethodObjArgs(future, nxt_py_result_str, NULL);
     if (nxt_slow_path(res == NULL)) {
-        nxt_unit_req_error(ws->req,
-                           "Python failed to call 'future.result()'");
+        nxt_unit_req_error(ws->req, "Python failed to call 'future.result()'");
         nxt_python_print_exception();
 
         rc = NXT_UNIT_ERROR;
@@ -1071,11 +1015,11 @@ nxt_py_asgi_websocket_done(PyObject *self, PyObject *future)
 
     if (ws->state == NXT_WS_ACCEPTED) {
         status_code = (rc == NXT_UNIT_OK)
-                      ? htons(NXT_WEBSOCKET_CR_NORMAL)
-                      : htons(NXT_WEBSOCKET_CR_INTERNAL_SERVER_ERROR);
+                          ? htons(NXT_WEBSOCKET_CR_NORMAL)
+                          : htons(NXT_WEBSOCKET_CR_INTERNAL_SERVER_ERROR);
 
-        rc = nxt_unit_websocket_send(ws->req, NXT_WEBSOCKET_OP_CLOSE,
-                                     1, &status_code, 2);
+        rc = nxt_unit_websocket_send(ws->req, NXT_WEBSOCKET_OP_CLOSE, 1,
+            &status_code, 2);
     }
 
     while (!nxt_queue_is_empty(&ws->pending_frames)) {

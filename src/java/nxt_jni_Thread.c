@@ -1,24 +1,21 @@
-
 /*
  * Copyright (C) NGINX, Inc.
  */
 
-#include <nxt_unit.h>
 #include <jni.h>
+#include <nxt_unit.h>
 
 #include "nxt_jni_Thread.h"
 
 
-static jclass     nxt_java_Thread_class;
-static jmethodID  nxt_java_Thread_currentThread;
-static jmethodID  nxt_java_Thread_getContextClassLoader;
-static jmethodID  nxt_java_Thread_setContextClassLoader;
-
+static jclass    nxt_java_Thread_class;
+static jmethodID nxt_java_Thread_currentThread;
+static jmethodID nxt_java_Thread_getContextClassLoader;
+static jmethodID nxt_java_Thread_setContextClassLoader;
 
 int
-nxt_java_initThread(JNIEnv *env)
-{
-    jclass  cls;
+nxt_java_initThread(JNIEnv *env) {
+    jclass cls;
 
     cls = (*env)->FindClass(env, "java/lang/Thread");
     if (cls == NULL) {
@@ -41,7 +38,7 @@ nxt_java_initThread(JNIEnv *env)
         "getContextClassLoader", "()Ljava/lang/ClassLoader;");
     if (nxt_java_Thread_getContextClassLoader == NULL) {
         nxt_unit_warn(NULL, "java.lang.Thread.getContextClassLoader() "
-                      "not found");
+                            "not found");
         goto failed;
     }
 
@@ -49,7 +46,7 @@ nxt_java_initThread(JNIEnv *env)
         "setContextClassLoader", "(Ljava/lang/ClassLoader;)V");
     if (nxt_java_Thread_setContextClassLoader == NULL) {
         nxt_unit_warn(NULL, "java.lang.Thread.setContextClassLoader() "
-                      "not found");
+                            "not found");
         goto failed;
     }
 
@@ -62,33 +59,31 @@ failed:
 }
 
 void
-nxt_java_setContextClassLoader(JNIEnv *env, jobject cl)
-{
+nxt_java_setContextClassLoader(JNIEnv *env, jobject cl) {
     jobject thread;
 
     thread = (*env)->CallStaticObjectMethod(env, nxt_java_Thread_class,
-                                            nxt_java_Thread_currentThread);
+        nxt_java_Thread_currentThread);
 
     if (thread == NULL) {
         return;
     }
 
     (*env)->CallVoidMethod(env, thread, nxt_java_Thread_setContextClassLoader,
-                           cl);
+        cl);
 }
 
 jobject
-nxt_java_getContextClassLoader(JNIEnv *env)
-{
+nxt_java_getContextClassLoader(JNIEnv *env) {
     jobject thread;
 
     thread = (*env)->CallStaticObjectMethod(env, nxt_java_Thread_class,
-                                            nxt_java_Thread_currentThread);
+        nxt_java_Thread_currentThread);
 
     if (thread == NULL) {
         return NULL;
     }
 
     return (*env)->CallObjectMethod(env, thread,
-                                    nxt_java_Thread_getContextClassLoader);
+        nxt_java_Thread_getContextClassLoader);
 }

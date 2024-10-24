@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
@@ -19,47 +18,46 @@
 
 #ifdef NXT_TEST_BUILD_LINUX_SENDFILE
 
-#define MSG_NOSIGNAL      0x4000
-#define MSG_MORE          0x8000
+#define MSG_NOSIGNAL 0x4000
+#define MSG_MORE     0x8000
 
-ssize_t nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
+ssize_t
+nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
     size_t limit);
 
-static ssize_t nxt_sys_sendfile(int out_fd, int in_fd, off_t *offset,
-    size_t count)
-{
+static ssize_t
+nxt_sys_sendfile(int out_fd, int in_fd, off_t *offset, size_t count) {
     return -1;
 }
 
 #else
-#define nxt_sys_sendfile  sendfile
+#define nxt_sys_sendfile sendfile
 #endif
 
 
-static ssize_t nxt_linux_send(nxt_event_conn_t *c, void *buf, size_t size,
-    nxt_uint_t flags);
-static ssize_t nxt_linux_sendmsg(nxt_event_conn_t *c,
-    nxt_sendbuf_coalesce_t *sb, nxt_uint_t niov, nxt_uint_t flags);
-
+static ssize_t
+nxt_linux_send(nxt_event_conn_t *c, void *buf, size_t size, nxt_uint_t flags);
+static ssize_t
+nxt_linux_sendmsg(nxt_event_conn_t *c, nxt_sendbuf_coalesce_t *sb,
+    nxt_uint_t niov, nxt_uint_t flags);
 
 ssize_t
 nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
-    size_t limit)
-{
-    size_t                  size;
-    ssize_t                 n;
-    nxt_buf_t               *fb;
-    nxt_err_t               err;
-    nxt_off_t               offset;
-    nxt_uint_t              niov, flags;
-    struct iovec            iov[NXT_IOBUF_MAX];
-    nxt_sendbuf_coalesce_t  sb;
+    size_t limit) {
+    size_t                 size;
+    ssize_t                n;
+    nxt_buf_t             *fb;
+    nxt_err_t              err;
+    nxt_off_t              offset;
+    nxt_uint_t             niov, flags;
+    struct iovec           iov[NXT_IOBUF_MAX];
+    nxt_sendbuf_coalesce_t sb;
 
-    sb.buf = b;
+    sb.buf   = b;
     sb.iobuf = iov;
-    sb.nmax = NXT_IOBUF_MAX;
-    sb.sync = 0;
-    sb.size = 0;
+    sb.nmax  = NXT_IOBUF_MAX;
+    sb.sync  = 0;
+    sb.size  = 0;
     sb.limit = limit;
 
     niov = nxt_sendbuf_mem_coalesce(c->socket.task, &sb);
@@ -71,7 +69,6 @@ nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
     fb = (sb.buf != NULL && nxt_buf_is_file(sb.buf)) ? sb.buf : NULL;
 
     if (niov != 0) {
-
         flags = MSG_NOSIGNAL;
 
         if (fb != NULL) {
@@ -95,8 +92,8 @@ nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
 
     size = nxt_sendbuf_file_coalesce(&sb);
 
-    nxt_debug(c->socket.task, "sendfile(%d, %FD, @%O, %uz)",
-              c->socket.fd, fb->file->fd, fb->file_pos, size);
+    nxt_debug(c->socket.task, "sendfile(%d, %FD, @%O, %uz)", c->socket.fd,
+        fb->file->fd, fb->file_pos, size);
 
     offset = fb->file_pos;
 
@@ -108,7 +105,6 @@ nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
 
     if (n == -1) {
         switch (err) {
-
         case NXT_EAGAIN:
             c->socket.write_ready = 0;
             break;
@@ -119,9 +115,8 @@ nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
         default:
             c->socket.error = err;
             nxt_log(c->socket.task, nxt_socket_error_level(err),
-                    "sendfile(%d, %FD, %O, %uz) failed %E \"%FN\"",
-                    c->socket.fd, fb->file->fd, fb->file_pos, size,
-                    err, fb->file->name);
+                "sendfile(%d, %FD, %O, %uz) failed %E \"%FN\"", c->socket.fd,
+                fb->file->fd, fb->file_pos, size, err, fb->file->name);
 
             return NXT_ERROR;
         }
@@ -138,23 +133,20 @@ nxt_linux_event_conn_io_sendfile(nxt_event_conn_t *c, nxt_buf_t *b,
     return n;
 }
 
-
 static ssize_t
-nxt_linux_send(nxt_event_conn_t *c, void *buf, size_t size, nxt_uint_t flags)
-{
-    ssize_t    n;
-    nxt_err_t  err;
+nxt_linux_send(nxt_event_conn_t *c, void *buf, size_t size, nxt_uint_t flags) {
+    ssize_t   n;
+    nxt_err_t err;
 
     n = send(c->socket.fd, buf, size, flags);
 
     err = (n == -1) ? nxt_errno : 0;
 
-    nxt_debug(c->socket.task, "send(%d, %p, %uz, 0x%uXi): %z",
-              c->socket.fd, buf, size, flags, n);
+    nxt_debug(c->socket.task, "send(%d, %p, %uz, 0x%uXi): %z", c->socket.fd,
+        buf, size, flags, n);
 
     if (n == -1) {
         switch (err) {
-
         case NXT_EAGAIN:
             c->socket.write_ready = 0;
             break;
@@ -165,8 +157,8 @@ nxt_linux_send(nxt_event_conn_t *c, void *buf, size_t size, nxt_uint_t flags)
         default:
             c->socket.error = err;
             nxt_log(c->socket.task, nxt_socket_error_level(err),
-                    "send(%d, %p, %uz, 0x%uXi) failed %E",
-                    c->socket.fd, buf, size, flags, err);
+                "send(%d, %p, %uz, 0x%uXi) failed %E", c->socket.fd, buf, size,
+                flags, err);
 
             return NXT_ERROR;
         }
@@ -183,33 +175,30 @@ nxt_linux_send(nxt_event_conn_t *c, void *buf, size_t size, nxt_uint_t flags)
     return n;
 }
 
-
 static ssize_t
 nxt_linux_sendmsg(nxt_event_conn_t *c, nxt_sendbuf_coalesce_t *sb,
-    nxt_uint_t niov, nxt_uint_t flags)
-{
-    ssize_t        n;
-    nxt_err_t      err;
-    struct msghdr  msg;
+    nxt_uint_t niov, nxt_uint_t flags) {
+    ssize_t       n;
+    nxt_err_t     err;
+    struct msghdr msg;
 
-    msg.msg_name = NULL;
-    msg.msg_namelen = 0;
-    msg.msg_iov = sb->iobuf;
-    msg.msg_iovlen = niov;
-    msg.msg_control = NULL;
+    msg.msg_name       = NULL;
+    msg.msg_namelen    = 0;
+    msg.msg_iov        = sb->iobuf;
+    msg.msg_iovlen     = niov;
+    msg.msg_control    = NULL;
     msg.msg_controllen = 0;
-    msg.msg_flags = 0;
+    msg.msg_flags      = 0;
 
     n = sendmsg(c->socket.fd, &msg, flags);
 
     err = (n == -1) ? nxt_errno : 0;
 
-    nxt_debug(c->socket.task, "sendmsg(%d, %ui, 0x%uXi): %z",
-              c->socket.fd, niov, flags, n);
+    nxt_debug(c->socket.task, "sendmsg(%d, %ui, 0x%uXi): %z", c->socket.fd,
+        niov, flags, n);
 
     if (n == -1) {
         switch (err) {
-
         case NXT_EAGAIN:
             c->socket.write_ready = 0;
             break;
@@ -220,8 +209,8 @@ nxt_linux_sendmsg(nxt_event_conn_t *c, nxt_sendbuf_coalesce_t *sb,
         default:
             c->socket.error = err;
             nxt_log(c->socket.task, nxt_socket_error_level(err),
-                    "sendmsg(%d, %ui, 0x%uXi) failed %E",
-                    c->socket.fd, niov, flags, err);
+                "sendmsg(%d, %ui, 0x%uXi) failed %E", c->socket.fd, niov, flags,
+                err);
 
             return NXT_ERROR;
         }

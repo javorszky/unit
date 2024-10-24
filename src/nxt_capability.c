@@ -12,33 +12,29 @@
 
 
 #if (_LINUX_CAPABILITY_VERSION_3)
-#define NXT_CAPABILITY_VERSION  _LINUX_CAPABILITY_VERSION_3
+#define NXT_CAPABILITY_VERSION _LINUX_CAPABILITY_VERSION_3
 #elif (_LINUX_CAPABILITY_VERSION_2)
-#define NXT_CAPABILITY_VERSION  _LINUX_CAPABILITY_VERSION_2
+#define NXT_CAPABILITY_VERSION _LINUX_CAPABILITY_VERSION_2
 #else
-#define NXT_CAPABILITY_VERSION  _LINUX_CAPABILITY_VERSION
+#define NXT_CAPABILITY_VERSION _LINUX_CAPABILITY_VERSION
 #endif
 
 
-#define nxt_capget(hdrp, datap)                                               \
-            syscall(SYS_capget, hdrp, datap)
-#define nxt_capset(hdrp, datap)                                               \
-            syscall(SYS_capset, hdrp, datap)
+#define nxt_capget(hdrp, datap) syscall(SYS_capget, hdrp, datap)
+#define nxt_capset(hdrp, datap) syscall(SYS_capset, hdrp, datap)
 
 #endif /* NXT_HAVE_LINUX_CAPABILITY */
 
 
-static nxt_int_t nxt_capability_specific_set(nxt_task_t *task,
-    nxt_capabilities_t *cap);
-
+static nxt_int_t
+nxt_capability_specific_set(nxt_task_t *task, nxt_capabilities_t *cap);
 
 nxt_int_t
-nxt_capability_set(nxt_task_t *task, nxt_capabilities_t *cap)
-{
+nxt_capability_set(nxt_task_t *task, nxt_capabilities_t *cap) {
     nxt_assert(cap->setid == 0);
 
     if (geteuid() == 0) {
-        cap->setid = 1;
+        cap->setid  = 1;
         cap->chroot = 1;
         return NXT_OK;
     }
@@ -50,8 +46,7 @@ nxt_capability_set(nxt_task_t *task, nxt_capabilities_t *cap)
 #if (NXT_HAVE_LINUX_CAPABILITY)
 
 static uint32_t
-nxt_capability_linux_get_version(void)
-{
+nxt_capability_linux_get_version(void) {
     struct __user_cap_header_struct hdr;
 
     hdr.version = NXT_CAPABILITY_VERSION;
@@ -61,12 +56,10 @@ nxt_capability_linux_get_version(void)
     return hdr.version;
 }
 
-
 static nxt_int_t
-nxt_capability_specific_set(nxt_task_t *task, nxt_capabilities_t *cap)
-{
-    struct __user_cap_data_struct    *val, data[2];
-    struct __user_cap_header_struct  hdr;
+nxt_capability_specific_set(nxt_task_t *task, nxt_capabilities_t *cap) {
+    struct __user_cap_data_struct  *val, data[2];
+    struct __user_cap_header_struct hdr;
 
     /*
      * Linux capability v1 fills an u32 struct.
@@ -85,7 +78,7 @@ nxt_capability_specific_set(nxt_task_t *task, nxt_capabilities_t *cap)
      * This is safer when distributing a pre-compiled Unit binary.
      */
     hdr.version = nxt_capability_linux_get_version();
-    hdr.pid = nxt_pid;
+    hdr.pid     = nxt_pid;
 
     if (nxt_slow_path(nxt_capget(&hdr, val) == -1)) {
         nxt_alert(task, "failed to get process capabilities: %E", nxt_errno);
@@ -111,8 +104,7 @@ nxt_capability_specific_set(nxt_task_t *task, nxt_capabilities_t *cap)
 #else
 
 static nxt_int_t
-nxt_capability_specific_set(nxt_task_t *task, nxt_capabilities_t *cap)
-{
+nxt_capability_specific_set(nxt_task_t *task, nxt_capabilities_t *cap) {
     return NXT_OK;
 }
 

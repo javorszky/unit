@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Igor Sysoev
  * Copyright (C) NGINX, Inc.
@@ -6,11 +5,9 @@
 
 #include <nxt_main.h>
 
-
 nxt_array_t *
-nxt_array_create(nxt_mp_t *mp, nxt_uint_t n, size_t size)
-{
-    nxt_array_t  *array;
+nxt_array_create(nxt_mp_t *mp, nxt_uint_t n, size_t size) {
+    nxt_array_t *array;
 
     array = nxt_mp_alloc(mp, sizeof(nxt_array_t) + n * size);
 
@@ -18,19 +15,17 @@ nxt_array_create(nxt_mp_t *mp, nxt_uint_t n, size_t size)
         return NULL;
     }
 
-    array->elts = nxt_pointer_to(array, sizeof(nxt_array_t));
-    array->nelts = 0;
-    array->size = size;
-    array->nalloc = n;
+    array->elts     = nxt_pointer_to(array, sizeof(nxt_array_t));
+    array->nelts    = 0;
+    array->size     = size;
+    array->nalloc   = n;
     array->mem_pool = mp;
 
     return array;
 }
 
-
 void
-nxt_array_destroy(nxt_array_t *array)
-{
+nxt_array_destroy(nxt_array_t *array) {
     if (array->elts != nxt_pointer_to(array, sizeof(nxt_array_t))) {
         nxt_mp_free(array->mem_pool, array->elts);
     }
@@ -38,17 +33,14 @@ nxt_array_destroy(nxt_array_t *array)
     nxt_mp_free(array->mem_pool, array);
 }
 
-
 void *
-nxt_array_add(nxt_array_t *array)
-{
-    void      *p;
-    uint32_t  nalloc, new_alloc;
+nxt_array_add(nxt_array_t *array) {
+    void    *p;
+    uint32_t nalloc, new_alloc;
 
     nalloc = array->nalloc;
 
     if (array->nelts == nalloc) {
-
         if (nalloc < 16) {
             /* Allocate new array twice larger than current. */
             new_alloc = (nalloc == 0) ? 4 : nalloc * 2;
@@ -70,7 +62,7 @@ nxt_array_add(nxt_array_t *array)
             nxt_mp_free(array->mem_pool, array->elts);
         }
 
-        array->elts = p;
+        array->elts   = p;
         array->nalloc = new_alloc;
     }
 
@@ -80,11 +72,9 @@ nxt_array_add(nxt_array_t *array)
     return p;
 }
 
-
 void *
-nxt_array_zero_add(nxt_array_t *array)
-{
-    void  *p;
+nxt_array_zero_add(nxt_array_t *array) {
+    void *p;
 
     p = nxt_array_add(array);
 
@@ -95,11 +85,9 @@ nxt_array_zero_add(nxt_array_t *array)
     return p;
 }
 
-
 void
-nxt_array_remove(nxt_array_t *array, void *elt)
-{
-    void  *last;
+nxt_array_remove(nxt_array_t *array, void *elt) {
+    void *last;
 
     last = nxt_array_last(array);
 
@@ -110,12 +98,10 @@ nxt_array_remove(nxt_array_t *array, void *elt)
     array->nelts--;
 }
 
-
 nxt_array_t *
-nxt_array_copy(nxt_mp_t *mp, nxt_array_t *dst, nxt_array_t *src)
-{
-    void      *data;
-    uint32_t  i, size;
+nxt_array_copy(nxt_mp_t *mp, nxt_array_t *dst, nxt_array_t *src) {
+    void    *data;
+    uint32_t i, size;
 
     size = src->size;
 

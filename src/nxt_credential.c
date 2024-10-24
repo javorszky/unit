@@ -6,26 +6,23 @@
 #include <nxt_main.h>
 
 
-static nxt_int_t nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp,
-    nxt_credential_t *uc);
-
+static nxt_int_t
+nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc);
 
 nxt_int_t
 nxt_credential_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc,
-    const char *group)
-{
-    struct group   *grp;
-    struct passwd  *pwd;
+    const char *group) {
+    struct group  *grp;
+    struct passwd *pwd;
 
     nxt_errno = 0;
 
     pwd = getpwnam(uc->user);
 
     if (nxt_slow_path(pwd == NULL)) {
-
         if (nxt_errno == 0) {
             nxt_alert(task, "getpwnam(\"%s\") failed, user \"%s\" not found",
-                      uc->user, uc->user);
+                uc->user, uc->user);
         } else {
             nxt_alert(task, "getpwnam(\"%s\") failed %E", uc->user, nxt_errno);
         }
@@ -33,7 +30,7 @@ nxt_credential_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc,
         return NXT_ERROR;
     }
 
-    uc->uid = pwd->pw_uid;
+    uc->uid      = pwd->pw_uid;
     uc->base_gid = pwd->pw_gid;
 
     if (group != NULL && group[0] != '\0') {
@@ -42,11 +39,10 @@ nxt_credential_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc,
         grp = getgrnam(group);
 
         if (nxt_slow_path(grp == NULL)) {
-
             if (nxt_errno == 0) {
                 nxt_alert(task,
-                          "getgrnam(\"%s\") failed, group \"%s\" not found",
-                          group, group);
+                    "getgrnam(\"%s\") failed, group \"%s\" not found", group,
+                    group);
             } else {
                 nxt_alert(task, "getgrnam(\"%s\") failed %E", group, nxt_errno);
             }
@@ -58,7 +54,7 @@ nxt_credential_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc,
     }
 
     nxt_debug(task, "about to get \"%s\" groups (uid:%d, base gid:%d)",
-              uc->user, uc->uid, uc->base_gid);
+        uc->user, uc->uid, uc->base_gid);
 
     if (nxt_credential_groups_get(task, mp, uc) != NXT_OK) {
         return NXT_ERROR;
@@ -66,11 +62,11 @@ nxt_credential_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc,
 
 #if (NXT_DEBUG)
     {
-        u_char      *p, *end;
-        nxt_uint_t  i;
-        u_char      msg[NXT_MAX_ERROR_STR];
+        u_char    *p, *end;
+        nxt_uint_t i;
+        u_char     msg[NXT_MAX_ERROR_STR];
 
-        p = msg;
+        p   = msg;
         end = msg + NXT_MAX_ERROR_STR;
 
         for (i = 0; i < uc->ngroups; i++) {
@@ -93,20 +89,18 @@ nxt_credential_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc,
 
 #define NXT_NGROUPS nxt_min(256, NGROUPS_MAX)
 
-
 static nxt_int_t
 nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp,
-    nxt_credential_t *uc)
-{
-    int    ngroups;
-    gid_t  groups[NXT_NGROUPS];
+    nxt_credential_t *uc) {
+    int   ngroups;
+    gid_t groups[NXT_NGROUPS];
 
     ngroups = NXT_NGROUPS;
 
     if (getgrouplist(uc->user, uc->base_gid, groups, &ngroups) < 0) {
         if (nxt_slow_path(ngroups <= NXT_NGROUPS)) {
             nxt_alert(task, "getgrouplist(\"%s\", %d, ...) failed %E", uc->user,
-                      uc->base_gid, nxt_errno);
+                uc->base_gid, nxt_errno);
 
             return NXT_ERROR;
         }
@@ -124,11 +118,10 @@ nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp,
             return NXT_ERROR;
         }
 
-        if (nxt_slow_path(getgrouplist(uc->user, uc->base_gid, uc->gids,
-                                       &ngroups) < 0)) {
-
+        if (nxt_slow_path(
+                getgrouplist(uc->user, uc->base_gid, uc->gids, &ngroups) < 0)) {
             nxt_alert(task, "getgrouplist(\"%s\", %d) failed %E", uc->user,
-                      uc->base_gid, nxt_errno);
+                uc->base_gid, nxt_errno);
 
             return NXT_ERROR;
         }
@@ -180,11 +173,11 @@ nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp,
  */
 
 static nxt_int_t
-nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc)
-{
+nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp,
+    nxt_credential_t *uc) {
     int        nsaved, ngroups;
     nxt_int_t  ret;
-    nxt_gid_t  *saved;
+    nxt_gid_t *saved;
 
     nsaved = getgroups(0, NULL);
 
@@ -198,7 +191,7 @@ nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc)
     if (nsaved > NGROUPS_MAX) {
         /* MacOSX case. */
 
-        uc->gids = NULL;
+        uc->gids    = NULL;
         uc->ngroups = 0;
 
         return NXT_OK;
@@ -224,16 +217,16 @@ nxt_credential_groups_get(nxt_task_t *task, nxt_mp_t *mp, nxt_credential_t *uc)
     if (initgroups(uc->user, uc->base_gid) != 0) {
         if (nxt_errno == NXT_EPERM) {
             nxt_log(task, NXT_LOG_NOTICE,
-                    "initgroups(%s, %d) failed %E, ignored",
-                    uc->user, uc->base_gid, nxt_errno);
+                "initgroups(%s, %d) failed %E, ignored", uc->user, uc->base_gid,
+                nxt_errno);
 
             ret = NXT_OK;
 
             goto free;
 
         } else {
-            nxt_alert(task, "initgroups(%s, %d) failed %E",
-                      uc->user, uc->base_gid, nxt_errno);
+            nxt_alert(task, "initgroups(%s, %d) failed %E", uc->user,
+                uc->base_gid, nxt_errno);
             goto restore;
         }
     }
@@ -283,16 +276,16 @@ free:
 
 
 nxt_int_t
-nxt_credential_setuid(nxt_task_t *task, nxt_credential_t *uc)
-{
+nxt_credential_setuid(nxt_task_t *task, nxt_credential_t *uc) {
     nxt_debug(task, "user cred set: \"%s\" uid:%d", uc->user, uc->uid);
 
     if (setuid(uc->uid) != 0) {
-
 #if (NXT_HAVE_LINUX_NS)
         if (nxt_errno == EINVAL) {
-            nxt_log(task, NXT_LOG_ERR, "The uid %d (user \"%s\") isn't "
-                    "valid in the application namespace.", uc->uid, uc->user);
+            nxt_log(task, NXT_LOG_ERR,
+                "The uid %d (user \"%s\") isn't "
+                "valid in the application namespace.",
+                uc->uid, uc->user);
             return NXT_ERROR;
         }
 #endif
@@ -304,23 +297,22 @@ nxt_credential_setuid(nxt_task_t *task, nxt_credential_t *uc)
     return NXT_OK;
 }
 
-
 nxt_int_t
-nxt_credential_setgids(nxt_task_t *task, nxt_credential_t *uc)
-{
-    nxt_runtime_t  *rt;
+nxt_credential_setgids(nxt_task_t *task, nxt_credential_t *uc) {
+    nxt_runtime_t *rt;
 
     nxt_debug(task, "user cred set gids: base gid:%d, ngroups: %d",
-              uc->base_gid, uc->ngroups);
+        uc->base_gid, uc->ngroups);
 
     rt = task->thread->runtime;
 
     if (setgid(uc->base_gid) != 0) {
-
 #if (NXT_HAVE_LINUX_NS)
         if (nxt_errno == EINVAL) {
-            nxt_log(task, NXT_LOG_ERR, "The gid %d isn't valid in the "
-                    "application namespace.", uc->base_gid);
+            nxt_log(task, NXT_LOG_ERR,
+                "The gid %d isn't valid in the "
+                "application namespace.",
+                uc->base_gid);
             return NXT_ERROR;
         }
 #endif
@@ -333,14 +325,15 @@ nxt_credential_setgids(nxt_task_t *task, nxt_credential_t *uc)
         return NXT_OK;
     }
 
-    if (nxt_slow_path(uc->ngroups > 0
-                      && setgroups(uc->ngroups, uc->gids) != 0)) {
-
+    if (nxt_slow_path(
+            uc->ngroups > 0 && setgroups(uc->ngroups, uc->gids) != 0)) {
 #if (NXT_HAVE_LINUX_NS)
         if (nxt_errno == EINVAL) {
-            nxt_log(task, NXT_LOG_ERR, "The user \"%s\" (uid: %d) has "
-                    "supplementary group ids not valid in the application "
-                    "namespace.", uc->user, uc->uid);
+            nxt_log(task, NXT_LOG_ERR,
+                "The user \"%s\" (uid: %d) has "
+                "supplementary group ids not valid in the application "
+                "namespace.",
+                uc->user, uc->uid);
             return NXT_ERROR;
         }
 #endif
