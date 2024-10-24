@@ -689,7 +689,7 @@ SkipMacroDefinitionBody: false
 # I don't know where we have macros in the code.
 # @DOUBLECHECK
 
-SortIncludes: CaseSensitive
+SortIncludes: Never
 # https://clang.llvm.org/docs/ClangFormatStyleOptions.html#sortincludes
 # No guidance. I think this should be CaseSensitive. There are related
 # options here. They are:
