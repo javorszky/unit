@@ -29,7 +29,7 @@ AlignArrayOfStructures: None
 
 AlignConsecutiveAssignments:
   Enabled: true
-  AcrossEmptyLines: false
+  AcrossEmptyLines: true
   AcrossComments: true
   AlignCompound: true
   PadOperators: true
