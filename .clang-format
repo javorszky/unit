@@ -19,10 +19,9 @@ AccessModifierOffset: -2
 # No guidance, need to double check
 # @DOUBLECHECK
 
-AlignAfterOpenBracket: DontAlign
+AlignAfterOpenBracket: Align
 # https://clang.llvm.org/docs/ClangFormatStyleOptions.html#alignafteropenbracket
-# No guidance in confluence, existing code suggests don't align, use
-# continuationindent
+# No guidance in confluence, existing code suggests Align.
 
 AlignArrayOfStructures: None
 # https://clang.llvm.org/docs/ClangFormatStyleOptions.html#alignarrayofstructures
