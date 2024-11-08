@@ -5219,6 +5219,7 @@ nxt_router_process_http_request(nxt_task_t *task, nxt_http_request_t *r,
     nxt_request_rpc_data_t  *req_rpc_data;
 
     conf = action->u.conf;
+
     engine = task->thread->engine;
 
     r->app_target = conf->target;
