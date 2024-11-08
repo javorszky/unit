@@ -5224,6 +5224,9 @@ nxt_router_process_http_request(nxt_task_t *task, nxt_http_request_t *r,
 
     r->app_target = conf->target;
 
+
+
+
     req_rpc_data = nxt_port_rpc_register_handler_ex(task, engine->port,
                                           nxt_router_response_ready_handler,
                                           nxt_router_response_error_handler,
